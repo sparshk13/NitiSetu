@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_env: str = "development"
-    app_name: str = "CivicPilot API"
+    app_name: str = "NitiSetu API"
     port: int = 8000
     frontend_origin: str = "http://localhost:5173"
 
@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     supabase_url: Optional[str] = None
     supabase_anon_key: Optional[str] = None
     supabase_service_role_key: Optional[str] = None
-    supabase_storage_bucket: str = "civicpilot-user-documents"
+    supabase_storage_bucket: str = "nitisetu-user-documents"
 
     # Google Gemini AI Settings
     gemini_api_key: Optional[str] = None

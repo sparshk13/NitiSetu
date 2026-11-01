@@ -1,6 +1,6 @@
-# CivicPilot — Deployment Guide
+# NitiSetu — Deployment Guide
 
-This guide covers deploying CivicPilot to production across standard cloud providers.
+This guide covers deploying NitiSetu to production across standard cloud providers.
 
 ---
 
@@ -43,7 +43,7 @@ graph LR
    - `SUPABASE_ANON_KEY`: Your Supabase anon key
    - `GEMINI_API_KEY`: Your Google Gemini API Key
    - `FRONTEND_ORIGIN`: `*` (or your Vercel frontend domain)
-5. Click **Apply**. Render will build and deploy your API (e.g., `https://civicpilot-api.onrender.com`).
+5. Click **Apply**. Render will build and deploy your API (e.g., `https://nitisetu-api.onrender.com`).
 
 ### Option B: Railway.app
 1. Go to [railway.app](https://railway.app) and click **New Project -> Deploy from GitHub repo**.
@@ -67,7 +67,7 @@ graph LR
    - **Framework Preset**: Vite
    - **Root Directory**: `frontend`
 4. Under **Environment Variables**, add:
-   - `VITE_API_BASE_URL`: `https://<YOUR-BACKEND-DOMAIN>/api/v1` (e.g. `https://civicpilot-api.onrender.com/api/v1`)
+   - `VITE_API_BASE_URL`: `https://<YOUR-BACKEND-DOMAIN>/api/v1` (e.g. `https://nitisetu-api.onrender.com/api/v1`)
 5. Click **Deploy**.
    - Vercel will build and deploy the React frontend in under a minute with global CDN edge routing and automatic HTTPS.
 

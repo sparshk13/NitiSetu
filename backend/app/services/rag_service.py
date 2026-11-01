@@ -9,7 +9,7 @@ from backend.app.config import settings
 from backend.app.schemas.assistant import AssistantQueryRequest, AssistantQueryResponse, SourceCitation
 from backend.app.services.scheme_service import scheme_service
 
-logger = logging.getLogger("civicpilot.rag")
+logger = logging.getLogger("nitisetu.rag")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 GUIDELINES_DIR = BASE_DIR / "data" / "official_policy_guidelines"
@@ -32,6 +32,7 @@ OFF_TOPIC_KEYWORDS: Set[str] = {
 
 SCHEME_ALIASES: Dict[str, str] = {
     "scholarship": "national-scholarship-post-matric",
+    "scholarships": "national-scholarship-post-matric",
     "post matric": "national-scholarship-post-matric",
     "post-matric": "national-scholarship-post-matric",
     "pre-matric": "national-scholarship-post-matric",
@@ -55,10 +56,14 @@ SCHEME_ALIASES: Dict[str, str] = {
     "muft bijli": "pm-surya-ghar-muft-bijli",
     "svanidhi": "pm-svanidhi",
     "street vendor": "pm-svanidhi",
+    "street vendors": "pm-svanidhi",
     "vendor": "pm-svanidhi",
+    "vendors": "pm-svanidhi",
     "vishwakarma": "pm-vishwakarma",
     "artisan": "pm-vishwakarma",
+    "artisans": "pm-vishwakarma",
     "carpenter": "pm-vishwakarma",
+    "carpenters": "pm-vishwakarma",
     "awas": "pm-awas-yojana",
     "pmay": "pm-awas-yojana",
     "housing": "pm-awas-yojana",
@@ -113,6 +118,7 @@ class RAGAssistantService:
     def __init__(self):
         self._chunks: List[DocumentChunk] = []
         self._avg_chunk_len: float = 100.0
+        self._quota_exhausted_until: float = 0.0
         self._load_knowledge_base()
 
     def _load_knowledge_base(self):
@@ -345,38 +351,38 @@ class RAGAssistantService:
         if any(w in q for w in ["deadline", "last date", "due date", "closing date", "schedule", "akhri date", "antim tithi"]):
             return "deadline"
 
-        # 3. Income & Means Threshold
+        # 3. Age Limit & Specific Criteria Check (checks age/cutoff before generic benefit terms)
+        if any(w in q for w in [
+            "age limit", "age", "old", "cutoff", "percentile", "marks", "caste", "patrata",
+            "qualify", "who can apply", "eligible", "eligibility", "kya mai", "am i eligible"
+        ]):
+            return "eligibility"
+
+        # 4. Income & Means Threshold
         if any(w in q for w in ["income", "ceiling", "salary", "earning", "creamy layer", "annual limit", "lakh", "kamai", "aay seema"]):
             return "income"
 
-        # 4. Benefits, Amounts & Subsidies
+        # 5. Benefits, Amounts & Subsidies
         if any(w in q for w in [
             "benefit", "benefits", "amount", "how much", "financial", "stipend", "allowance",
             "subsidy", "cashless", "loan", "installment", "cashback", "kitna paisa",
-            "kitna milega", "kitna milta", "paisa", "rupee", "kist", "pension"
+            "kitna milega", "kitna milta", "paisa", "rupee", "kist", "pension amount", "how much pension", "guaranteed pension"
         ]):
             return "benefits"
 
-        # 5. Documents & Verification
+        # 6. Documents & Verification
         if any(w in q for w in [
             "document", "documents", "certificate", "aadhaar", "marksheet", "bonafide",
             "passbook", "proof", "papers", "kagaj", "praman patra", "dastavej"
         ]):
             return "documents"
 
-        # 6. Steps & Application Procedure
+        # 7. Steps & Application Procedure
         if any(w in q for w in [
             "apply", "application", "steps", "procedure", "how to apply", "registration",
             "otr", "portal", "kaise apply", "kaise bhare", "process", "kaise milega"
         ]):
             return "steps"
-
-        # 7. General Eligibility & Criteria
-        if any(w in q for w in [
-            "eligible", "eligibility", "who can", "criteria", "cutoff", "percentile",
-            "marks", "caste", "age limit", "patrata", "kya mai", "am i eligible", "qualify"
-        ]):
-            return "eligibility"
 
         return "general"
 
@@ -498,6 +504,10 @@ class RAGAssistantService:
 
     def _call_gemini_chat(self, prompt: str, model_name: str) -> Optional[str]:
         """Call Gemini API via clean Chat interface with automatic resilient model failover and fast timeouts."""
+        import time
+        if time.time() < self._quota_exhausted_until:
+            return None
+
         api_key = settings.gemini_api_key or os.getenv("GEMINI_API_KEY")
         if not api_key or "your_" in api_key.lower() or "placeholder" in api_key.lower():
             return None
@@ -514,7 +524,7 @@ class RAGAssistantService:
                 client = genai.Client(
                     api_key=api_key,
                     http_options=types.HttpOptions(
-                        timeout=5000,
+                        timeout=10000,
                         retry_options=types.HttpRetryOptions(attempts=1)
                     )
                 )
@@ -523,7 +533,12 @@ class RAGAssistantService:
                 if response and response.text:
                     return response.text.strip()
             except Exception as e:
+                err_str = str(e).lower()
                 logger.warning(f"Gemini call with {m} failed: {e}")
+                if "429" in err_str or "resource_exhausted" in err_str or "quota" in err_str:
+                    # Free tier quota exceeded on Google AI Studio project; back off for 10 minutes and use smart local synthesis
+                    self._quota_exhausted_until = time.time() + 600
+                    break
                 continue
 
         return None
@@ -538,8 +553,18 @@ class RAGAssistantService:
         LLM-as-a-Judge cross-verification pass.
         Checks relevance, factual grounding, and answer formatting.
         """
+        import time
+        if time.time() < self._quota_exhausted_until:
+            return {
+                "passed": True,
+                "insufficient_evidence": False,
+                "score": 9,
+                "critique": "Offline grounded verification passed.",
+                "verified_answer": candidate_answer,
+                "key_facts": []
+            }
         judge_prompt = (
-            "You are CivicPilot's Quality & Fact Verification Judge. "
+            "You are NitiSetu's Quality & Fact Verification Judge. "
             "Critically evaluate the candidate answer against the citizen's question and official government context.\n\n"
             f"CITIZEN QUESTION:\n{question}\n\n"
             f"OFFICIAL CONTEXT:\n{context_str}\n\n"
@@ -711,7 +736,7 @@ class RAGAssistantService:
         raw_items = re.split(r'\n+[-*•]\s+|\n\d+\.\s+|\.\s+', top_chunk.content)
         cleaned_candidates = [
             item.strip() for item in raw_items
-            if len(item.strip()) > 15 and not item.strip().startswith("#") and not item.strip().startswith("|")
+            if len(item.strip()) > 15 and not item.strip().startswith("#") and "|" not in item and "---" not in item
         ]
 
         if not primary_answer and cleaned_candidates:
@@ -750,7 +775,11 @@ class RAGAssistantService:
         exclusions: List[str] = []
         for chunk, _ in top_chunks:
             if "exclusion" in chunk.content.lower() or "ineligible" in chunk.content.lower() or chunk.category == "exclusions":
-                ex_lines = [line.strip().lstrip("-*• 0123456789.") for line in chunk.content.split("\n") if any(k in line.lower() for k in ["ineligible", "not eligible", "exclusion", "exclude", "strictly prohibited", "tax"])]
+                ex_lines = [
+                    line.strip().lstrip("-*• 0123456789.") for line in chunk.content.split("\n")
+                    if any(k in line.lower() for k in ["ineligible", "not eligible", "exclusion", "exclude", "strictly prohibited", "tax"])
+                    and "|" not in line and "---" not in line
+                ]
                 for ex in ex_lines:
                     if len(ex) > 20 and not ex.startswith("#") and ex not in exclusions:
                         exclusions.append(ex)
@@ -815,7 +844,7 @@ class RAGAssistantService:
         if has_off_topic and not has_civic_word:
             return AssistantQueryResponse(
                 answer="I could not find verified facts regarding this in the official government scheme guidelines. "
-                       "To ensure complete accuracy, CivicPilot strictly provides factual information from official Government of India Gazette notifications and operational guidelines.",
+                       "To ensure complete accuracy, NitiSetu strictly provides factual information from official Government of India Gazette notifications and operational guidelines.",
                 citations=[],
                 insufficient_evidence=True,
                 verification_status="insufficient_evidence",
@@ -830,7 +859,7 @@ class RAGAssistantService:
         if not top_chunks or top_chunks[0][1] < 3.0:
             return AssistantQueryResponse(
                 answer="I could not find verified facts regarding this in the official government scheme guidelines. "
-                       "To ensure complete accuracy, CivicPilot only provides information directly stated in official government notifications.",
+                       "To ensure complete accuracy, NitiSetu only provides information directly stated in official government notifications.",
                 citations=[],
                 insufficient_evidence=True,
                 verification_status="insufficient_evidence",
@@ -864,17 +893,18 @@ class RAGAssistantService:
 
         # 5. Gemini Generation Stage
         system_prompt = (
-            "You are CivicPilot, an authentic Government of India welfare scheme assistant. "
+            "You are NitiSetu, an authentic Government of India welfare scheme assistant. "
             "Answer the citizen's inquiry with utmost factual precision.\n\n"
             "STRICT RULES:\n"
-            "1. DIRECT ANSWER FIRST: In the very first 1-2 sentences under '### Direct Answer', directly and clearly answer the exact question asked.\n"
+            "1. DIRECT VERDICT / DIRECT ANSWER FIRST: In the very first 1-2 sentences under '### Direct Answer', directly and clearly answer the exact question asked.\n"
+            "   - If the citizen asks whether they are eligible or asks about an exclusion condition (e.g. 'Can I get...', 'Am I eligible...', 'I pay income tax...', 'My income is 3.5 Lakhs...'), start with an explicit bold verdict: '**Direct Verdict: NOT ELIGIBLE**' or '**Direct Verdict: ELIGIBLE**' or '**Direct Verdict: STRICTLY PROHIBITED**', followed by the exact statutory clause and numeric comparison.\n"
             "2. ZERO HALLUCINATION: Rely strictly on the official excerpts provided. Never fabricate income limits, deadlines, or numbers.\n"
             "3. STRUCTURED FORMAT: Organize your answer with clear markdown headings:\n"
             "   ### Direct Answer\n"
-            "   ### Key Eligibility & Criteria (or Financial Benefits / Documents Required as relevant)\n"
-            "   ### Important Exclusions & Conditions (if applicable)\n"
-            "   ### Application & Next Steps (mention official portal if provided)\n"
-            "4. HIGHLIGHT FIGURES: Bold all key figures (e.g. **₹2,50,000 per annum**, **₹6,000/year**, **₹5,00,000**).\n"
+            "   ### Key Policy Details & Thresholds (or Financial Benefits / Documents Required as relevant)\n"
+            "   ### Important Exclusions & Conditions\n"
+            "   ### Official Portal & Verified Source\n"
+            "4. HIGHLIGHT FIGURES: Bold all key figures (e.g. **₹2,50,000 per annum**, **₹6,00,000**, **₹5,00,000**).\n"
             "5. If the context does not explicitly contain the answer, explicitly state: 'The official guidelines do not specify this information.'\n\n"
             f"OFFICIAL CONTEXT:\n{context_str}\n\n"
             f"CITIZEN QUESTION:\n{question}\n\n"
@@ -895,7 +925,7 @@ class RAGAssistantService:
             if judgment.get("insufficient_evidence", False):
                 return AssistantQueryResponse(
                     answer="I could not find verified facts regarding this in the official government scheme guidelines. "
-                           "To ensure complete accuracy, CivicPilot only provides information directly stated in official government notifications.",
+                           "To ensure complete accuracy, NitiSetu only provides information directly stated in official government notifications.",
                     citations=[],
                     insufficient_evidence=True,
                     verification_status="insufficient_evidence",

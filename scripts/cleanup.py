@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CivicPilot Repository Cleanup & Audit Tool
+"""NitiSetu Repository Cleanup & Audit Tool
 
 Usage:
     python scripts/cleanup.py           # Default: dry-run
@@ -57,7 +57,7 @@ def get_repo_root() -> Path:
 
     # Ensure expected project indicators exist
     if not (repo_root / "data").exists() and not (repo_root / "Docs").exists():
-        raise RuntimeError(f"Directory {repo_root} does not appear to be CivicPilot repository.")
+        raise RuntimeError(f"Directory {repo_root} does not appear to be NitiSetu repository.")
 
     return repo_root
 
@@ -100,7 +100,7 @@ def run_cleanup(repo_root: Path, apply: bool = False):
     """Execute cleanup: dry-run by default, or delete if apply=True."""
     mode = "APPLY (DELETION)" if apply else "DRY-RUN (NO DELETION)"
     print(f"\n=======================================================")
-    print(f" CivicPilot Cleanup: {mode}")
+    print(f" NitiSetu Cleanup: {mode}")
     print(f" Target Repository: {repo_root}")
     print(f"=======================================================\n")
 
@@ -151,7 +151,7 @@ def run_cleanup(repo_root: Path, apply: bool = False):
 def run_audit_report(repo_root: Path):
     """Audit codebase for AI leftovers, TODOs, debug statements, and placeholder text."""
     print(f"\n=======================================================")
-    print(f" CivicPilot Codebase Quality Audit Report")
+    print(f" NitiSetu Codebase Quality Audit Report")
     print(f" Target: {repo_root}")
     print(f"=======================================================\n")
 
@@ -210,7 +210,7 @@ def run_audit_report(repo_root: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CivicPilot cleanup and code quality tool.")
+    parser = argparse.ArgumentParser(description="NitiSetu cleanup and code quality tool.")
     parser.add_argument("--dry-run", action="store_true", help="Print safe cleanup targets without deleting (default).")
     parser.add_argument("--apply", action="store_true", help="Delete allowlisted safe artifacts.")
     parser.add_argument("--report", action="store_true", help="Audit repository for AI leftovers, TODOs, and debug statements.")

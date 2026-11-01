@@ -10,7 +10,7 @@ from backend.app.schemas.document import DocumentResponse, DocumentChecklistResp
 from backend.app.services.scheme_service import scheme_service
 from backend.app.services.profile_service import DEFAULT_DEMO_USER_ID, profile_service
 
-logger = logging.getLogger("civicpilot.documents")
+logger = logging.getLogger("nitisetu.documents")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 UPLOAD_DIR = BASE_DIR / "backend" / "uploads"

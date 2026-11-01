@@ -69,5 +69,5 @@ async def root():
         "version": "1.0.0",
         "status": "online",
         "docs": "/docs",
-        "disclaimer": "CivicPilot is an independent public welfare assistant and not an official government agency."
+        "disclaimer": "NitiSetu is an independent public welfare assistant and not an official government agency."
     }

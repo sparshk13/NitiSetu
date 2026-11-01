@@ -83,7 +83,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess, onClose
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white tracking-tight">CivicPilot Portal</h2>
+              <h2 className="text-lg font-bold text-white tracking-tight">NitiSetu Portal</h2>
               <p className="text-[11px] text-slate-300">National Scheme Discovery & Eligibility Gateway</p>
             </div>
           </div>

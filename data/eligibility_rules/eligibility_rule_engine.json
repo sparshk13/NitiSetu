@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "title": "CivicPilot Dynamic Scheme Matching Rules",
+    "title": "NitiSetu Dynamic Scheme Matching Rules",
     "version": "1.0",
     "rule_evaluation_logic": "All specified conditions for a scheme must evaluate to TRUE for citizen eligibility."
   },

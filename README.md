@@ -1,4 +1,4 @@
-# CivicPilot
+# NitiSetu
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -7,7 +7,7 @@
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4+-06B6D4?style=flat&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?style=flat&logo=postgresql&logoColor=white)](https://supabase.com)
 
-**CivicPilot** is a digital governance platform designed to help citizens discover official government welfare schemes and scholarships, evaluate their eligibility using deterministic rule engines, explore gazette policies using grounded AI, and prepare verified applications.
+**NitiSetu** is a digital governance platform designed to help citizens discover official government welfare schemes and scholarships, evaluate their eligibility using deterministic rule engines, explore gazette policies using grounded AI, and prepare verified applications.
 
 ---
 

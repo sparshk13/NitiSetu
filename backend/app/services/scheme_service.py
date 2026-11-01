@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from backend.app.schemas.scheme import SchemeListItem, SchemeListResponse, SchemeDetailResponse, SchemeRecommendationRequest
 
-logger = logging.getLogger("civicpilot.schemes")
+logger = logging.getLogger("nitisetu.schemes")
 
 # Resolve project data path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent

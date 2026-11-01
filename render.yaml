@@ -1,7 +1,7 @@
 services:
-  # CivicPilot FastAPI Backend
+  # NitiSetu FastAPI Backend
   - type: web
-    name: civicpilot-api
+    name: nitisetu-api
     env: python
     region: oregon
     plan: free
@@ -24,9 +24,9 @@ services:
       - key: GEMINI_API_KEY
         sync: false
 
-  # CivicPilot React Frontend
+  # NitiSetu React Frontend
   - type: web
-    name: civicpilot-web
+    name: nitisetu-web
     env: static
     region: oregon
     plan: free
@@ -40,6 +40,6 @@ services:
       - key: VITE_API_BASE_URL
         fromService:
           type: web
-          name: civicpilot-api
+          name: nitisetu-api
           property: host
 

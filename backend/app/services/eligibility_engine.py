@@ -10,7 +10,7 @@ from backend.app.schemas.eligibility import (
 )
 from backend.app.services.scheme_service import scheme_service
 
-logger = logging.getLogger("civicpilot.eligibility")
+logger = logging.getLogger("nitisetu.eligibility")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 RULES_FILE = BASE_DIR / "data" / "eligibility_rules" / "eligibility_rule_engine.json"

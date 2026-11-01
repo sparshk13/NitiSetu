@@ -114,8 +114,8 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
       <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
         <div>
-          <strong className="text-amber-900">Safety & Compliance Protocol:</strong> CivicPilot demonstrates automated application assistance strictly on a controlled mock portal. 
-          CivicPilot <strong>never</strong> interacts with live government portals without explicit citizen presence, never stores government passwords, and never submits applications automatically.
+          <strong className="text-amber-900">Safety & Compliance Protocol:</strong> NitiSetu demonstrates automated application assistance strictly on a controlled mock portal. 
+          NitiSetu <strong>never</strong> interacts with live government portals without explicit citizen presence, never stores government passwords, and never submits applications automatically.
         </div>
       </div>
 

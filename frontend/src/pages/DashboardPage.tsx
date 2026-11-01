@@ -63,7 +63,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
             Welcome back, {profile?.full_name || 'Citizen'}
           </h1>
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
-            CivicPilot connects citizens across India to 2,000+ official Central and State Government schemes — covering agriculture, healthcare, housing, pensions, livelihoods, and education. Evaluate your eligibility deterministically against official Gazette guidelines, verify documents, and prepare validated applications.
+            NitiSetu connects citizens across India to 2,000+ official Central and State Government schemes — covering agriculture, healthcare, housing, pensions, livelihoods, and education. Evaluate your eligibility deterministically against official Gazette guidelines, verify documents, and prepare validated applications.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -327,9 +327,9 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
       <div className="p-4 rounded-xl bg-slate-100/80 border border-slate-200 text-xs text-slate-600 flex items-start gap-3">
         <Building2 className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
         <div>
-          <strong className="text-slate-800">Public Information Notice & Provenance:</strong> CivicPilot is an independent civic discovery platform designed to assist every citizen across India. 
+          <strong className="text-slate-800">Public Information Notice & Provenance:</strong> NitiSetu is an independent civic discovery platform designed to assist every citizen across India. 
           All scheme rules, eligibility caps, benefits, and guidelines are mirrored directly from official government gazette sources (including <a href="https://www.myscheme.gov.in" target="_blank" rel="noreferrer" className="text-blue-600 underline">myScheme.gov.in</a> and <a href="https://scholarships.gov.in" target="_blank" rel="noreferrer" className="text-blue-600 underline">scholarships.gov.in</a>). 
-          CivicPilot does not grant or guarantee welfare benefits.
+          NitiSetu does not grant or guarantee welfare benefits.
         </div>
       </div>
     </div>

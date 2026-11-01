@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Optional
 from backend.app.schemas.profile import ProfileCreate, ProfileUpdate, ProfileResponse
 
-logger = logging.getLogger("civicpilot.profile")
+logger = logging.getLogger("nitisetu.profile")
 
 # In-memory / session profile cache for rapid prototyping, synced with DB
 _GLOBAL_PROFILE_STORE: Dict[str, Dict] = {}

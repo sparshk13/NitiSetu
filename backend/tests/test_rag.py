@@ -84,3 +84,78 @@ def test_rag_formatted_structure():
     )
     resp = rag_service.answer_query(req)
     assert "Direct Answer" in resp.answer
+    assert "Key Policy Details" in resp.answer or "Key Provisions" in resp.answer
+    assert "Important Exclusions" in resp.answer or "Exclusions" in resp.answer
+
+
+def test_rag_exclusion_verdict_income_tax_pmkisan():
+    """Negative case: Income tax payer querying PM-KISAN receives explicit NOT ELIGIBLE verdict."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="I pay income tax every year. Can I receive PM-KISAN money?"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "NOT ELIGIBLE" in resp.answer
+    assert "Exclusion" in resp.detected_intent
+    assert "kisan" in resp.matched_scheme_name.lower() or "pm-kisan" in resp.matched_scheme_name.lower()
+
+
+def test_rag_exclusion_verdict_dual_scholarship():
+    """Negative case: Dual scholarship query receives explicit NOT ELIGIBLE / PROHIBITED verdict."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="Can I receive two scholarships at the same time?"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "NOT ELIGIBLE" in resp.answer or "PROHIBITED" in resp.answer
+    assert "Exclusion" in resp.detected_intent
+
+
+def test_rag_exclusion_verdict_income_threshold():
+    """Negative case: Income above statutory ceiling receives explicit NOT ELIGIBLE verdict with numeric cap."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="My family income is 3.5 Lakhs. Can I get Post-Matric SC scholarship?"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "NOT ELIGIBLE" in resp.answer
+    assert "2.5" in resp.answer or "250,000" in resp.answer or "2,50,000" in resp.answer
+
+
+def test_rag_catalog_scheme_resolution_without_slug():
+    """General 2066-scheme catalog: Querying APY without explicit slug correctly matches APY and age bounds."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="What is the age limit for Atal Pension Yojana?"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "Atal Pension" in resp.matched_scheme_name
+    assert "18" in resp.answer and "40" in resp.answer
+
+
+def test_rag_hinglish_conversational_query():
+    """Multilingual / Hinglish conversational query properly maps intent and answers with official facts."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="pm kisan me kitna paisa milta hai"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "6,000" in resp.answer
+    assert "Financial Benefits" in resp.detected_intent
+
+
+def test_rag_pmsvanidhi_loan_amounts():
+    """PM-SVANidhi query returns exact loan tranche structure."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="What is the first loan amount in PM-SVANidhi?"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "10,000" in resp.answer
+    assert "Financial Benefits" in resp.detected_intent

@@ -5,7 +5,7 @@ from typing import Dict, Optional
 from backend.app.schemas.auth import CitizenRegisterRequest, CitizenLoginRequest, AuthTokenResponse
 from backend.app.services.profile_service import profile_service, _GLOBAL_PROFILE_STORE, DEFAULT_DEMO_USER_ID
 
-logger = logging.getLogger("civicpilot.auth")
+logger = logging.getLogger("nitisetu.auth")
 
 # Citizen credentials registry
 _CITIZENS_DB: Dict[str, Dict] = {

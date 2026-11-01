@@ -363,7 +363,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onProfileUpdated }) =>
               Citizen Profile & Demographics
             </h1>
             <p className="text-slate-500 text-xs sm:text-sm mt-1 leading-relaxed">
-              CivicPilot matches your demographic facts, livelihood, and economic indicators deterministically against official Central & State Government scheme rules (Gazette & DBT Bharat).
+              NitiSetu matches your demographic facts, livelihood, and economic indicators deterministically against official Central & State Government scheme rules (Gazette & DBT Bharat).
             </p>
           </div>
 
@@ -654,7 +654,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onProfileUpdated }) =>
                   <option key={occ} value={occ}>{occ}</option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-400 mt-1">CivicPilot prioritizes central and state welfare benefits specific to your profession.</p>
+              <p className="text-[11px] text-slate-400 mt-1">NitiSetu prioritizes central and state welfare benefits specific to your profession.</p>
             </div>
 
             {/* Conditional Farmer / Landowner fields */}

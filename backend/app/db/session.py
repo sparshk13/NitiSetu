@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from backend.app.config import settings
 
-logger = logging.getLogger("civicpilot.db")
+logger = logging.getLogger("nitisetu.db")
 
 Base = declarative_base()
 
@@ -12,7 +12,7 @@ def get_engine():
     db_url = settings.database_url
     if not db_url:
         # Fallback to local SQLite for immediate offline execution or unit tests
-        db_url = "sqlite:///./civicpilot.db"
+        db_url = "sqlite:///./nitisetu.db"
         logger.info(f"DATABASE_URL not set. Defaulting to local storage: {db_url}")
         return create_engine(db_url, connect_args={"check_same_thread": False})
     

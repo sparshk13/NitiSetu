@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for CivicPilot Backend API
+# Multi-stage Dockerfile for NitiSetu Backend API
 FROM python:3.11-slim
 
 WORKDIR /app

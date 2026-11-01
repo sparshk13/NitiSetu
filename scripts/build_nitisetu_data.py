@@ -274,7 +274,7 @@ def build_eligibility_rules_engine():
     # 2. Eligibility Rules Engine
     rules_engine = {
         "metadata": {
-            "title": "CivicPilot Dynamic Scheme Matching Rules",
+            "title": "NitiSetu Dynamic Scheme Matching Rules",
             "version": "1.0",
             "rule_evaluation_logic": "All specified conditions for a scheme must evaluate to TRUE for citizen eligibility."
         },
@@ -714,4 +714,4 @@ if __name__ == "__main__":
     build_eligibility_rules_engine()
     build_application_workflows()
     build_official_guidelines_markdown()
-    print("\nCivicPilot authentic data pipeline executed successfully!")
+    print("\nNitiSetu authentic data pipeline executed successfully!")

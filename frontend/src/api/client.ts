@@ -1,5 +1,5 @@
 /**
- * CivicPilot API Client
+ * NitiSetu API Client
  * Connects to FastAPI backend with typed contracts, per-citizen authentication,
  * and strict separation between registered citizens and seeded demo personas.
  */
@@ -133,7 +133,7 @@ export interface AuthUser {
 export const api = {
   getStoredUser(): AuthUser | null {
     try {
-      const stored = localStorage.getItem('civicpilot_user');
+      const stored = localStorage.getItem('nitisetu_user') || localStorage.getItem('civicpilot_user');
       return stored ? JSON.parse(stored) : null;
     } catch {
       return null;
@@ -142,8 +142,9 @@ export const api = {
 
   setStoredUser(user: AuthUser | null) {
     if (user) {
-      localStorage.setItem('civicpilot_user', JSON.stringify(user));
+      localStorage.setItem('nitisetu_user', JSON.stringify(user));
     } else {
+      localStorage.removeItem('nitisetu_user');
       localStorage.removeItem('civicpilot_user');
     }
   },
@@ -919,7 +920,7 @@ export const api = {
     const qLower = question.toLowerCase();
     if (qLower.includes("disney") || qLower.includes("canada") || qLower.includes("weather") || qLower.includes("movie")) {
       return {
-        answer: "I could not find verified facts regarding this in the official government scheme guidelines. CivicPilot only provides information directly stated in official government notifications.",
+        answer: "I could not find verified facts regarding this in the official government scheme guidelines. NitiSetu only provides information directly stated in official government notifications.",
         citations: [],
         insufficient_evidence: true,
         disclaimer: "Grounded in official Government of India guidelines."

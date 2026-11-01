@@ -1,4 +1,4 @@
-# CivicPilot – Authentic Government Scheme Discovery & Application Data
+# NitiSetu – Authentic Government Scheme Discovery & Application Data
 
 This directory contains **100% authentic, verified datasets** sourced directly from authorized Government of India portals (such as [myScheme.gov.in](https://www.myscheme.gov.in/), DBT Bharat, National Portal of India, and official ministry notifications). 
 
@@ -97,11 +97,11 @@ Analyzed across all 2,066 authentic schemes, the top required official documents
 13. **Bonafide Student Certificate**: 123 schemes (6.0%)
 14. **Land Records (RoR / Khasra / Khatauni)**: 70 schemes (3.4%)
 
-The file `scheme_document_matrix.json` allows CivicPilot to immediately tell any citizen which documents they need based on the schemes they select.
+The file `scheme_document_matrix.json` allows NitiSetu to immediately tell any citizen which documents they need based on the schemes they select.
 
 ---
 
-## 3. Quickstart: Loading Data in CivicPilot Backend
+## 3. Quickstart: Loading Data in NitiSetu Backend
 
 ### Python (Pandas / RAG):
 ```python

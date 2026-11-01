@@ -288,8 +288,8 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({ initialSchemeSlug,
       id: 'welcome',
       sender: 'assistant',
       text: isSpecific
-        ? `### Direct Answer\nNamaste! I am your CivicPilot Verified Policy Assistant for **${activeScheme.name}** (${activeScheme.level}).\n\n### Key Scope\n- Answer queries strictly verified against official Gazette notifications and guidelines.\n- Check family income limits, eligible criteria, required documents, and disbursal rules.\n\nAsk any question below regarding this policy.`
-        : `### Direct Answer\nNamaste! I am your CivicPilot Policy Assistant. I provide factually grounded welfare guidance verified against official Gazette notifications and operational guidelines from **myScheme.gov.in** and respective ministries.\n\n### How to Use\n- Ask about income thresholds, eligibility criteria, required documents, or application procedures.\n- Query across all schemes or select a specific scheme from the dropdown above.`,
+        ? `### Direct Answer\nNamaste! I am your NitiSetu Verified Policy Assistant for **${activeScheme.name}** (${activeScheme.level}).\n\n### Key Scope\n- Answer queries strictly verified against official Gazette notifications and guidelines.\n- Check family income limits, eligible criteria, required documents, and disbursal rules.\n\nAsk any question below regarding this policy.`
+        : `### Direct Answer\nNamaste! I am your NitiSetu Policy Assistant. I provide factually grounded welfare guidance verified against official Gazette notifications and operational guidelines from **myScheme.gov.in** and respective ministries.\n\n### How to Use\n- Ask about income thresholds, eligibility criteria, required documents, or application procedures.\n- Query across all schemes or select a specific scheme from the dropdown above.`,
       citations: isSpecific ? [
         {
           source_title: activeScheme.name,
@@ -495,7 +495,7 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({ initialSchemeSlug,
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
                     <strong className="block font-semibold">Strict Factuality Guardrail Active:</strong>
-                    CivicPilot only answers questions verified by official Government of India Gazette notifications and operational guidelines to prevent hallucinations.
+                    NitiSetu only answers questions verified by official Government of India Gazette notifications and operational guidelines to prevent hallucinations.
                   </div>
                 </div>
               )}
@@ -606,7 +606,7 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({ initialSchemeSlug,
       </form>
 
       <div className="text-center text-[11px] text-slate-400 font-mono">
-        All responses are verified and cross-checked against authenticated Government of India policy documents. CivicPilot does not generate legal advice.
+        All responses are verified and cross-checked against authenticated Government of India policy documents. NitiSetu does not generate legal advice.
       </div>
     </div>
   );

@@ -1,14 +1,14 @@
 {
-  "name": "civicpilot",
+  "name": "nitisetu",
   "version": "1.0.0",
-  "description": "CivicPilot — AI-Powered Government Scheme Discovery & Application Assistant",
+  "description": "NitiSetu — AI-Powered Government Scheme Discovery & Application Assistant",
   "scripts": {
     "cleanup": "python3 scripts/cleanup.py --dry-run",
     "cleanup:apply": "python3 scripts/cleanup.py --apply",
     "cleanup:report": "python3 scripts/cleanup.py --report"
   },
   "keywords": [
-    "civicpilot",
+    "nitisetu",
     "government-schemes",
     "scholarships",
     "ai-assistant"

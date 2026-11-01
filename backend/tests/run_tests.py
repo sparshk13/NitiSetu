@@ -17,7 +17,7 @@ from backend.app.services.application_service import application_service
 from backend.app.schemas.application import ApplicationDraftCreate
 
 
-class TestCivicPilotCore(unittest.TestCase):
+class TestNitiSetuCore(unittest.TestCase):
     def test_document_extraction_and_confirmation(self):
         """Document parsing requires human confirmation before status becomes verified."""
         upload_resp = document_service.simulate_or_parse_upload(

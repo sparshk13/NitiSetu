@@ -156,7 +156,7 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ profile, initialSc
               Citizen Document Vault & Verification
             </h1>
             <p className="text-slate-500 text-xs sm:text-sm mt-1 leading-relaxed">
-              Upload your official certificates (Aadhaar, Ration Card, Income Certificate, Land 7/12, Bank Passbook, Marksheets). CivicPilot inspects certificate templates, verifies issuing authority seals, extracts official attributes, and requires your explicit review before application seeding.
+              Upload your official certificates (Aadhaar, Ration Card, Income Certificate, Land 7/12, Bank Passbook, Marksheets). NitiSetu inspects certificate templates, verifies issuing authority seals, extracts official attributes, and requires your explicit review before application seeding.
             </p>
           </div>
 

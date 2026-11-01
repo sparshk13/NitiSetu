@@ -98,7 +98,7 @@ export const App: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-base sm:text-lg tracking-tight text-slate-900">CivicPilot</span>
+                  <span className="font-bold text-base sm:text-lg tracking-tight text-slate-900">NitiSetu</span>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                     Public Welfare Discovery
                   </span>
@@ -312,7 +312,7 @@ export const App: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>CivicPilot • Independent Citizen Information Assistant</span>
+            <span>NitiSetu • Independent Citizen Information Assistant</span>
           </div>
           <div className="flex items-center gap-4 text-slate-400 font-mono text-[11px]">
             <span>Sources: myScheme.gov.in, DBT Bharat & National Portals</span>

@@ -1,6 +1,6 @@
 -- ====================================================================
--- CivicPilot Supabase PostgreSQL Schema & Security Policies
--- CivicPilot Supabase Relational & Vector Schema
+-- NitiSetu Supabase PostgreSQL Schema & Security Policies
+-- NitiSetu Supabase Relational & Vector Schema
 -- ====================================================================
 
 -- 1. Enable required extensions
