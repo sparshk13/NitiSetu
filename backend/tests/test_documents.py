@@ -51,3 +51,57 @@ def test_diverse_document_extraction():
     assert "Ration Card" in ration_resp.detected_type
     assert "card_category" in ration_resp.extracted_fields
     assert "passing_percentage" not in ration_resp.extracted_fields
+
+
+def test_category_mismatch_detection():
+    """Uploading a document different from the selected category is strictly rejected."""
+    # Aadhaar uploaded when Income Certificate was selected
+    aadhaar_mismatch = document_service.simulate_or_parse_upload(
+        "Aadhaar_Document.pdf",
+        b"%PDF-1.4 UIDAI Mera Aadhaar 9182 3746 5019",
+        expected_type="Income Certificate"
+    )
+    assert aadhaar_mismatch.is_valid is False
+    assert aadhaar_mismatch.processing_status == "rejected_category_mismatch"
+    assert "Category Mismatch" in aadhaar_mismatch.verification_error
+    assert "Income Certificate" in aadhaar_mismatch.verification_error
+    assert "Aadhaar Card" in aadhaar_mismatch.detected_type
+
+    # Income Certificate uploaded when Aadhaar Card was selected
+    income_mismatch = document_service.simulate_or_parse_upload(
+        "Revenue_Income_Cert.pdf",
+        b"%PDF-1.4 Tehsildar Income Certificate Rs. 1,50,000",
+        expected_type="Aadhaar Card (UIDAI)"
+    )
+    assert income_mismatch.is_valid is False
+    assert income_mismatch.processing_status == "rejected_category_mismatch"
+    assert "Category Mismatch" in income_mismatch.verification_error
+
+
+def test_accurate_fact_extraction_from_pdf():
+    """Real facts visibly present on the document are extracted accurately without synthetic placeholders."""
+    import pymupdf
+    doc = pymupdf.open()
+    p = doc.new_page()
+    p.insert_text((50, 50), '''GOVERNMENT OF INDIA
+Unique Identification Authority of India
+Enrollment No: 1024/50214/09872
+To,
+Vikramjit Singh
+S/O Harpreet Singh
+DOB: 14/11/1998
+Male
+9182 3746 5019
+Address: H No 214, Model Town, Ludhiana, Punjab - 141002
+''')
+    pdf_bytes = doc.tobytes()
+
+    res = document_service.simulate_or_parse_upload("Aadhaar_Vikramjit.pdf", pdf_bytes, expected_type="auto")
+    assert res.is_valid is True
+    assert res.detected_type == "Aadhaar Card (UIDAI)"
+    assert res.extracted_fields["document_number"] == "9182 3746 5019"
+    assert res.extracted_fields["holder_name"] == "Vikramjit Singh"
+    assert res.extracted_fields["date_of_birth"] == "14/11/1998"
+    assert res.extracted_fields["gender"] == "Male"
+    assert "Ludhiana" in res.extracted_fields["address"]
+

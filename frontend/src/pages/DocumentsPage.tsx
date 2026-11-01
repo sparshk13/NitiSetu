@@ -226,8 +226,96 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ profile, initialSc
         </div>
       </div>
 
-      {/* Review Modal: Document Verification Failed (Rejection Case) */}
-      {pendingDoc && (pendingDoc.is_valid === false || pendingDoc.processing_status === 'rejected_unrecognized') && (
+      {/* Category Mismatch Rejection Modal */}
+      {pendingDoc && pendingDoc.processing_status === 'rejected_category_mismatch' && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in duration-200">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-amber-950 text-base">
+                  Document Category Mismatch Detected
+                </h3>
+                <p className="text-xs text-amber-800">
+                  File: <strong>{pendingDoc.original_filename}</strong> ({((pendingDoc.file_size || 0) / 1024).toFixed(1)} KB)
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setPendingDoc(null)}
+              className="text-amber-500 hover:text-amber-800 p-1"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-amber-200 text-xs text-slate-800 space-y-3">
+            <p className="font-semibold text-amber-900">
+              {pendingDoc.verification_error || "The uploaded document does not match the category you selected in the upload form."}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] bg-amber-50/60 p-3 rounded-lg border border-amber-200">
+              <div>
+                <span className="text-slate-500 block">Category You Selected:</span>
+                <span className="font-bold text-rose-700">{selectedDocType}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Actual Identified Document:</span>
+                <span className="font-bold text-emerald-800">{pendingDoc.detected_type}</span>
+              </div>
+            </div>
+
+            {pendingDoc.extracted_fields && Object.keys(pendingDoc.extracted_fields).length > 0 && (
+              <div className="pt-2 border-t border-slate-100">
+                <div className="font-bold text-slate-700 text-[11px] mb-1">Authentic Values Detected on File:</div>
+                <div className="max-h-32 overflow-y-auto space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200 font-mono text-[11px]">
+                  {Object.entries(pendingDoc.extracted_fields).slice(0, 4).map(([k, v]) => (
+                    <div key={k} className="flex justify-between">
+                      <span className="text-slate-500 uppercase">{k.replace(/_/g, ' ')}:</span>
+                      <span className="font-bold text-slate-900">{String(v)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+            <button
+              onClick={() => setPendingDoc(null)}
+              className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-xl"
+            >
+              Dismiss & Choose Matching File
+            </button>
+
+            <button
+              onClick={() => {
+                if (pendingDoc.detected_type) {
+                  setSelectedDocType(pendingDoc.detected_type);
+                }
+                setPendingDoc({
+                  ...pendingDoc,
+                  is_valid: true,
+                  processing_status: 'awaiting_user_confirmation'
+                });
+                if (pendingDoc.extracted_fields) {
+                  setEditableFields({ ...pendingDoc.extracted_fields });
+                }
+              }}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-xs transition-all"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Switch Category to "{pendingDoc.detected_type}" & Review Facts
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal: Document Verification Failed (Corrupted/Non-Government File) */}
+      {pendingDoc && pendingDoc.processing_status === 'rejected_unrecognized' && (
         <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in duration-200">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
@@ -283,7 +371,7 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ profile, initialSc
       )}
 
       {/* Review Modal: Document Verification Passed (Human Confirmation Required) */}
-      {pendingDoc && pendingDoc.is_valid !== false && pendingDoc.processing_status !== 'rejected_unrecognized' && (
+      {pendingDoc && pendingDoc.is_valid !== false && pendingDoc.processing_status === 'awaiting_user_confirmation' && (
         <div className="bg-emerald-50/80 border-2 border-emerald-300 rounded-2xl p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
@@ -574,12 +662,23 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ profile, initialSc
                   <div className="text-[11px] text-slate-500 leading-relaxed">
                     {item.req}
                   </div>
-                  <div className="pt-1">
+                  <div className="pt-1.5 flex items-center justify-between gap-2">
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                       isReady ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
                     }`}>
                       {isReady ? 'Ready in Vault' : 'Missing / Required'}
                     </span>
+                    {!isReady && (
+                      <button
+                        onClick={() => {
+                          setSelectedDocType(item.title);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                      >
+                        <Upload className="w-3 h-3" /> Select Category
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

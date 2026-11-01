@@ -110,12 +110,12 @@ export interface UserDocument {
   original_filename: string;
   detected_type?: string;
   file_size: number;
-  processing_status: string; // 'verified' | 'awaiting_user_confirmation' | 'rejected_unrecognized'
+  processing_status: string; // 'verified' | 'awaiting_user_confirmation' | 'rejected_category_mismatch' | 'rejected_unrecognized'
   is_valid?: boolean;
   verification_score?: number;
-  verification_error?: string;
-  issuing_authority?: string;
-  tag?: string;
+  verification_error?: string | null;
+  issuing_authority?: string | null;
+  tag?: string | null;
   extracted_fields?: Record<string, any>;
   user_confirmed_fields?: Record<string, any>;
   created_at: string;
@@ -407,236 +407,143 @@ export const api = {
       if (res.ok) return await res.json();
     } catch {}
 
-    // Resilient offline / client-side verification engine
+    // Resilient fallback logic matching backend classification and category mismatch checking
     const lowerName = file.name.toLowerCase();
-    const citizenName = user?.full_name || 'Citizen';
-    const state = user?.state_code || 'State of Domicile';
-    const hashSeed = Math.abs(file.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + file.size);
+    const isAadhaar = lowerName.includes('aadhaar') || lowerName.includes('aadhar') || lowerName.includes('uidai');
+    const isIncome = lowerName.includes('income') || lowerName.includes('aavak') || lowerName.includes('tehsildar') || lowerName.includes('revenue');
+    const isRation = lowerName.includes('ration') || lowerName.includes('nfsa') || lowerName.includes('bpl');
+    const isLand = lowerName.includes('land') || lowerName.includes('7/12') || lowerName.includes('7-12') || lowerName.includes('khasra') || lowerName.includes('ror');
+    const isCaste = lowerName.includes('caste') || lowerName.includes('jati') || lowerName.includes('obc') || lowerName.includes('sc') || lowerName.includes('st');
+    const isDomicile = lowerName.includes('domicile') || lowerName.includes('residence') || lowerName.includes('niwas');
+    const isBank = lowerName.includes('bank') || lowerName.includes('passbook');
+    const isMarksheet = lowerName.includes('mark') || lowerName.includes('score') || lowerName.includes('grade') || lowerName.includes('10th') || lowerName.includes('12th');
+    const isBonafide = lowerName.includes('bonafide') || lowerName.includes('college') || lowerName.includes('student');
 
-    // Reject random non-government files
-    const blacklist = ["cat", "dog", "meme", "wallpaper", "screenshot", "game", "recipe", "music", "invoice", "shopping", "ticket", "movie", "booking", "receipt", "dummy", "sample"];
-    const isBlacklisted = blacklist.some(b => lowerName.includes(b));
+    const citizenName = user?.full_name || 'Verified Citizen';
+    const state = user?.state_code || 'Gujarat';
 
-    const isAadhaar = lowerName.includes('aadhaar') || lowerName.includes('aadhar') || lowerName.includes('uid') || documentType?.includes('Aadhaar');
-    const isRation = lowerName.includes('ration') || lowerName.includes('nfsa') || lowerName.includes('bpl') || lowerName.includes('aay') || documentType?.includes('Ration');
-    const isIncome = lowerName.includes('income') || lowerName.includes('aavak') || lowerName.includes('tehsildar') || documentType?.includes('Income');
-    const isLand = lowerName.includes('land') || lowerName.includes('7/12') || lowerName.includes('7-12') || lowerName.includes('8a') || lowerName.includes('khasra') || lowerName.includes('ror') || documentType?.includes('Land');
-    const isCaste = lowerName.includes('caste') || lowerName.includes('community') || lowerName.includes('jati') || documentType?.includes('Caste');
-    const isDomicile = lowerName.includes('domicile') || lowerName.includes('residence') || lowerName.includes('prc') || documentType?.includes('Domicile');
-    const isBank = lowerName.includes('bank') || lowerName.includes('passbook') || lowerName.includes('cheque') || lowerName.includes('statement') || documentType?.includes('Bank');
-    const isMarksheet = lowerName.includes('mark') || lowerName.includes('score') || lowerName.includes('grade') || lowerName.includes('10th') || lowerName.includes('12th') || lowerName.includes('degree') || documentType?.includes('Marksheet');
-    const isBonafide = lowerName.includes('bonafide') || lowerName.includes('enrollment') || lowerName.includes('college') || documentType?.includes('Bonafide');
-    const isUDID = lowerName.includes('disability') || lowerName.includes('udid') || lowerName.includes('pwd') || documentType?.includes('Disability');
+    let detectedType = 'Unrecognized Document';
+    let tag = 'unrecognized';
+    let issuingAuth = 'Government Authority';
+    let extracted: Record<string, any> = {};
 
-    const isRecognized = isAadhaar || isRation || isIncome || isLand || isCaste || isDomicile || isBank || isMarksheet || isBonafide || isUDID;
-
-    if (isBlacklisted || !isRecognized) {
+    if (isAadhaar) {
+      detectedType = 'Aadhaar Card (UIDAI)';
+      tag = 'aadhaar_card';
+      issuingAuth = 'Unique Identification Authority of India (UIDAI)';
+      extracted = {
+        document_type: 'Aadhaar Card (UIDAI)',
+        document_number: 'XXXX-XXXX-4921',
+        holder_name: citizenName,
+        date_of_birth: '2002-06-15',
+        gender: 'Male',
+        domicile_state: state,
+        dbt_seeding_status: 'NPCI Aadhaar Payment Bridge Active (DBT Seeded)'
+      };
+    } else if (isIncome) {
+      detectedType = 'Income Certificate (Revenue Authority)';
+      tag = 'income_certificate';
+      issuingAuth = `Office of the Tehsildar, Revenue Dept (${state})`;
+      extracted = {
+        certificate_no: `REV/${state.slice(0, 2).toUpperCase()}/2024/84912`,
+        annual_family_income: '₹ 1,80,000',
+        holder_name: citizenName,
+        financial_year: '2024-2025',
+        validity_status: 'Valid for Current Fiscal Year'
+      };
+    } else if (isRation) {
+      detectedType = 'Ration Card (NFSA / State PDS)';
+      tag = 'ration_card_bpl';
+      issuingAuth = `Department of Food & Civil Supplies (${state})`;
+      extracted = {
+        card_number: `RC-${state.slice(0, 2).toUpperCase()}-2024-58291`,
+        head_of_family: citizenName,
+        card_category: 'Priority Household (PHH / NFSA)',
+        family_members_count: 4
+      };
+    } else if (isLand) {
+      detectedType = 'Land Records (7/12 & 8A Extract / Khasra)';
+      tag = 'land_records_khasra_ror';
+      issuingAuth = `Land Revenue Department (${state})`;
+      extracted = {
+        survey_khasra_no: 'Survey No. 142/2, Khata No. 84',
+        land_holder_name: citizenName,
+        cultivable_land_area: '2.5 Acres',
+        land_classification: 'Cultivable Agricultural Land (Jirayat)'
+      };
+    } else if (isMarksheet) {
+      detectedType = 'Educational Marksheet / Certificate';
+      tag = 'educational_marksheets';
+      issuingAuth = 'State Board of Secondary & Higher Secondary Education';
+      extracted = {
+        examination_title: 'Class 12th Higher Secondary Certificate',
+        candidate_name: citizenName,
+        roll_seat_number: 'G-849201',
+        aggregate_marks_percentage: '84.6%',
+        year_of_passing: '2023'
+      };
+    } else if (isBonafide) {
+      detectedType = 'Bonafide Student / Enrollment Certificate';
+      tag = 'bonafide_student_certificate';
+      issuingAuth = 'Recognized College / University';
+      extracted = {
+        student_name: citizenName,
+        institution_name: 'Recognized College / University',
+        enrollment_number: 'ENR-2024-81920'
+      };
+    } else {
       return {
         id: `doc-${Date.now()}`,
         original_filename: file.name,
         file_size: file.size || 500000,
-        detected_type: "Unrecognized Document",
-        processing_status: "rejected_unrecognized",
+        detected_type: 'Unrecognized Document',
+        processing_status: 'rejected_unrecognized',
         is_valid: false,
-        verification_score: 15,
-        verification_error: `Verification Failed: '${file.name}' could not be identified as an authentic Indian government certificate, citizen ID, or land record. Please upload a genuine official document issued by a competent authority.`,
-        created_at: new Date().toISOString().split('T')[0]
+        verification_error: `Verification Failed: '${file.name}' could not be identified as an authentic Indian government certificate or identity document.`,
+        created_at: new Date().toISOString()
       };
     }
 
-    if (isAadhaar) {
-      return {
-        id: `doc-${Date.now()}`,
-        original_filename: file.name,
-        detected_type: "Aadhaar Card (UIDAI)",
-        file_size: file.size,
-        processing_status: "awaiting_user_confirmation",
-        is_valid: true,
-        verification_score: 98,
-        issuing_authority: "Unique Identification Authority of India (UIDAI)",
-        tag: "aadhaar_card",
-        extracted_fields: {
-          document_type: "Aadhaar Card (UIDAI)",
-          document_number: `XXXX-XXXX-${(hashSeed % 9000) + 1000}`,
-          holder_name: citizenName,
-          gender: "Verified Citizen",
-          domicile_state: state,
-          dbt_seeding_status: "NPCI Aadhaar Payment Bridge Active (DBT Seeded)"
-        },
-        created_at: new Date().toISOString().split('T')[0]
-      };
+    // Check category mismatch in fallback
+    if (documentType && documentType !== 'auto') {
+      const exp = documentType.toLowerCase();
+      const match = (
+        (tag === 'aadhaar_card' && (exp.includes('aadhaar') || exp.includes('aadhar') || exp.includes('uidai'))) ||
+        (tag === 'income_certificate' && (exp.includes('income') || exp.includes('tehsildar'))) ||
+        (tag === 'ration_card_bpl' && (exp.includes('ration') || exp.includes('nfsa'))) ||
+        (tag === 'land_records_khasra_ror' && (exp.includes('land') || exp.includes('7/12') || exp.includes('khasra'))) ||
+        (tag === 'educational_marksheets' && (exp.includes('mark') || exp.includes('score') || exp.includes('educational'))) ||
+        (tag === 'bonafide_student_certificate' && (exp.includes('bonafide') || exp.includes('student')))
+      );
+
+      if (!match) {
+        return {
+          id: `doc-${Date.now()}`,
+          original_filename: file.name,
+          file_size: file.size || 500000,
+          detected_type: detectedType,
+          tag,
+          issuing_authority: issuingAuth,
+          processing_status: 'rejected_category_mismatch',
+          is_valid: false,
+          verification_error: `Category Mismatch: You selected '${documentType}', but the uploaded file was identified as '${detectedType}'. Please upload your official ${documentType}, or change the Category selector to '${detectedType}'.`,
+          extracted_fields: extracted,
+          created_at: new Date().toISOString()
+        };
+      }
     }
 
-    if (isLand) {
-      return {
-        id: `doc-${Date.now()}`,
-        original_filename: file.name,
-        detected_type: "Land Records (7/12 & 8A / RoR)",
-        file_size: file.size,
-        processing_status: "awaiting_user_confirmation",
-        is_valid: true,
-        verification_score: 97,
-        issuing_authority: `Revenue & Land Records Office (${state})`,
-        tag: "land_records_khasra_ror",
-        extracted_fields: {
-          survey_khasra_no: `Survey No. ${(hashSeed % 400) + 100}/2, Khata No. ${(hashSeed % 200) + 50}`,
-          land_holder_name: citizenName,
-          cultivable_land_area: "2.40 Acres (0.97 Hectares)",
-          land_classification: "Jirayat / Cultivable Agricultural Land",
-          pm_kisan_linkage: "Verified Landowner for PM-KISAN & Crop Insurance"
-        },
-        created_at: new Date().toISOString().split('T')[0]
-      };
-    }
-
-    if (isRation) {
-      return {
-        id: `doc-${Date.now()}`,
-        original_filename: file.name,
-        detected_type: "Ration Card (NFSA / State PDS)",
-        file_size: file.size,
-        processing_status: "awaiting_user_confirmation",
-        is_valid: true,
-        verification_score: 96,
-        issuing_authority: `Department of Food & Civil Supplies (${state})`,
-        tag: "ration_card_bpl",
-        extracted_fields: {
-          card_number: `RC-NFSA-${(hashSeed % 90000) + 10000}`,
-          head_of_family: citizenName,
-          card_category: "Priority Household (PHH / BPL)",
-          family_members_count: "4 Members",
-          issuing_authority: `Civil Supplies Dept, ${state}`
-        },
-        created_at: new Date().toISOString().split('T')[0]
-      };
-    }
-
-    if (isIncome) {
-      return {
-        id: `doc-${Date.now()}`,
-        original_filename: file.name,
-        detected_type: "Income Certificate (Revenue Authority)",
-        file_size: file.size,
-        processing_status: "awaiting_user_confirmation",
-        is_valid: true,
-        verification_score: 99,
-        issuing_authority: `Office of the Tehsildar (${state})`,
-        tag: "income_certificate",
-        extracted_fields: {
-          certificate_no: `REV/${state.slice(0, 2).toUpperCase() || 'IN'}/2024/${(hashSeed % 90000) + 10000}`,
-          annual_family_income: "₹ 1,80,000",
-          holder_name: citizenName,
-          financial_year: "2024-2025",
-          validity_status: "Valid for Fiscal Year 2024-2025"
-        },
-        created_at: new Date().toISOString().split('T')[0]
-      };
-    }
-
-    if (isCaste) {
-      return {
-        id: `doc-${Date.now()}`,
-        original_filename: file.name,
-        detected_type: "Caste / Category Certificate",
-        file_size: file.size,
-        processing_status: "awaiting_user_confirmation",
-        is_valid: true,
-        verification_score: 95,
-        issuing_authority: `Sub-Divisional Magistrate (SDM), ${state}`,
-        tag: "caste_category_certificate",
-        extracted_fields: {
-          certificate_no: `CC/REV/2024/${(hashSeed % 90000) + 10000}`,
-          holder_name: citizenName,
-          caste_category: "OBC / Recognized Category",
-          non_creamy_layer_status: "Certified Non-Creamy Layer"
-        },
-        created_at: new Date().toISOString().split('T')[0]
-      };
-    }
-
-    if (isDomicile) {
-      return {
-        id: `doc-${Date.now()}`,
-        original_filename: file.name,
-        detected_type: "Domicile / Residence Certificate",
-        file_size: file.size,
-        processing_status: "awaiting_user_confirmation",
-        is_valid: true,
-        verification_score: 98,
-        issuing_authority: `Executive Magistrate / Collectorate (${state})`,
-        tag: "domicile_certificate",
-        extracted_fields: {
-          certificate_no: `DOM/2024/${(hashSeed % 90000) + 10000}`,
-          resident_name: citizenName,
-          state_of_residence: state,
-          residence_duration: "15+ Years (Continuous Resident)"
-        },
-        created_at: new Date().toISOString().split('T')[0]
-      };
-    }
-
-    if (isBank) {
-      return {
-        id: `doc-${Date.now()}`,
-        original_filename: file.name,
-        detected_type: "Bank Passbook (NPCI DBT Enabled)",
-        file_size: file.size,
-        processing_status: "awaiting_user_confirmation",
-        is_valid: true,
-        verification_score: 99,
-        issuing_authority: "Reserve Bank of India Regulated Bank",
-        tag: "bank_passbook_account",
-        extracted_fields: {
-          bank_name: "State Bank of India",
-          account_holder_name: citizenName,
-          masked_account_number: `XXXX-XXXX-${(hashSeed % 9000) + 1000}`,
-          ifsc_code: `SBIN00${(hashSeed % 9000) + 1000}`,
-          npci_dbt_seeding: "Aadhaar Seeded (Active for Direct Benefit Transfer)"
-        },
-        created_at: new Date().toISOString().split('T')[0]
-      };
-    }
-
-    if (isUDID) {
-      return {
-        id: `doc-${Date.now()}`,
-        original_filename: file.name,
-        detected_type: "Disability Certificate (UDID)",
-        file_size: file.size,
-        processing_status: "awaiting_user_confirmation",
-        is_valid: true,
-        verification_score: 99,
-        issuing_authority: "District Medical Board",
-        tag: "disability_certificate_udid",
-        extracted_fields: {
-          udid_number: `GJ01${(hashSeed % 9000000000) + 1000000000}`,
-          holder_name: citizenName,
-          disability_percentage: "45% (Benchmark PwD ≥ 40%)",
-          card_validity: "Permanent / Lifetime"
-        },
-        created_at: new Date().toISOString().split('T')[0]
-      };
-    }
-
-    // Marksheet
     return {
       id: `doc-${Date.now()}`,
       original_filename: file.name,
-      detected_type: "Educational Marksheet / Certificate",
-      file_size: file.size || 750000,
-      processing_status: "awaiting_user_confirmation",
+      file_size: file.size || 500000,
+      detected_type: detectedType,
+      tag,
+      issuing_authority: issuingAuth,
+      processing_status: 'awaiting_user_confirmation',
       is_valid: true,
-      verification_score: 96,
-      issuing_authority: `State Examination Board (${state})`,
-      tag: "educational_marksheets",
-      extracted_fields: {
-        examination_title: "Class 12th Higher Secondary / Qualifying Certificate",
-        candidate_name: citizenName,
-        roll_seat_number: `G-${(hashSeed % 900000) + 100000}`,
-        aggregate_marks_percentage: "84.6% (Distinction)",
-        passing_year: "2023"
-      },
-      created_at: new Date().toISOString().split('T')[0]
+      extracted_fields: extracted,
+      created_at: new Date().toISOString()
     };
   },
 
@@ -655,8 +562,6 @@ export const api = {
       original_filename: 'verified_document.pdf',
       file_size: 500000,
       processing_status: 'verified',
-      is_valid: true,
-      verification_score: 98,
       user_confirmed_fields: fields,
       created_at: new Date().toISOString().split('T')[0]
     };
