@@ -12,7 +12,8 @@ import {
   GraduationCap, 
   HelpCircle,
   Clock,
-  Sparkles
+  Sparkles,
+  FileCheck2
 } from 'lucide-react';
 import { api, SchemeDetail, EligibilityResponse } from '../api/client';
 
@@ -64,13 +65,27 @@ export const SchemeDetailPage: React.FC<SchemeDetailProps> = ({ slug, onBack, on
           <ArrowLeft className="w-4 h-4" /> Back to Discovery
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => onNavigate('assistant', scheme.slug)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs"
           >
             <Bot className="w-3.5 h-3.5 text-blue-600" />
-            Ask AI Assistant
+            Ask Policy AI
+          </button>
+          <button
+            onClick={() => onNavigate('documents', scheme.slug)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs"
+          >
+            <FileText className="w-3.5 h-3.5 text-blue-600" />
+            Check Documents
+          </button>
+          <button
+            onClick={() => onNavigate('application', scheme.slug)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs"
+          >
+            <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" />
+            Prepare Application
           </button>
           <a
             href={scheme.official_url}

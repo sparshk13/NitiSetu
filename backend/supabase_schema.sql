@@ -134,25 +134,32 @@ ALTER TABLE public.source_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.document_chunks ENABLE ROW LEVEL SECURITY;
 
 -- Public read access for schemes and policy guidelines
+DROP POLICY IF EXISTS "Public schemes are viewable by everyone" ON public.schemes;
 CREATE POLICY "Public schemes are viewable by everyone" ON public.schemes
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Public scheme rules are viewable by everyone" ON public.scheme_rules;
 CREATE POLICY "Public scheme rules are viewable by everyone" ON public.scheme_rules
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Public source documents are viewable by everyone" ON public.source_documents;
 CREATE POLICY "Public source documents are viewable by everyone" ON public.source_documents
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Public document chunks are viewable by everyone" ON public.document_chunks;
 CREATE POLICY "Public document chunks are viewable by everyone" ON public.document_chunks
     FOR SELECT USING (true);
 
 -- User-specific access for profiles, uploaded docs, and application drafts
+DROP POLICY IF EXISTS "Users can access own profile" ON public.profiles;
 CREATE POLICY "Users can access own profile" ON public.profiles
     FOR ALL USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can access own documents" ON public.user_documents;
 CREATE POLICY "Users can access own documents" ON public.user_documents
     FOR ALL USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can access own application drafts" ON public.application_drafts;
 CREATE POLICY "Users can access own application drafts" ON public.application_drafts
     FOR ALL USING (auth.uid() = user_id);
 

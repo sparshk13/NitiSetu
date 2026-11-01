@@ -25,7 +25,7 @@ import { api, ProfileData, AuthUser } from './api/client';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'discovery' | 'detail' | 'assistant' | 'documents' | 'application' | 'profile'>('dashboard');
-  const [selectedSchemeSlug, setSelectedSchemeSlug] = useState<string | undefined>('national-scholarship-post-matric');
+  const [selectedSchemeSlug, setSelectedSchemeSlug] = useState<string | undefined>(undefined);
   const [profile, setProfile] = useState<ProfileData>({});
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -302,8 +302,8 @@ export const App: React.FC = () => {
             onNavigate={handleNavigate} 
           />
         )}
-        {activeTab === 'documents' && <DocumentsPage profile={profile} />}
-        {activeTab === 'application' && <ApplicationPage profile={profile} onNavigate={handleNavigate} />}
+        {activeTab === 'documents' && <DocumentsPage profile={profile} initialSchemeSlug={selectedSchemeSlug} />}
+        {activeTab === 'application' && <ApplicationPage profile={profile} initialSchemeSlug={selectedSchemeSlug} onNavigate={handleNavigate} />}
         {activeTab === 'profile' && <ProfilePage onProfileUpdated={(updated) => setProfile(updated)} />}
       </main>
 

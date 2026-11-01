@@ -11,6 +11,76 @@ import {
 } from 'lucide-react';
 import { api, ProfileData } from '../api/client';
 
+const COMMON_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat",
+  "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra",
+  "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim",
+  "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi (NCT)", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+];
+
+const COMMON_COURSES = [
+  "B.Tech Computer Science & Engineering",
+  "B.Tech Information Technology",
+  "B.Tech Electronics & Communication",
+  "B.Tech Mechanical Engineering",
+  "B.Tech Civil Engineering",
+  "B.Tech Artificial Intelligence & Data Science",
+  "B.Sc Computer Science",
+  "B.Sc Information Technology",
+  "B.Sc Mathematics",
+  "B.Sc Physics",
+  "B.Sc Agriculture",
+  "B.Sc Nursing",
+  "Bachelor of Commerce (B.Com)",
+  "B.Com (Honours)",
+  "Bachelor of Business Administration (BBA)",
+  "Bachelor of Computer Applications (BCA)",
+  "Bachelor of Arts (Economics)",
+  "Bachelor of Arts (Political Science)",
+  "Bachelor of Arts (English)",
+  "MBBS (Medicine & Surgery)",
+  "Bachelor of Dental Surgery (BDS)",
+  "Bachelor of Pharmacy (B.Pharm)",
+  "Bachelor of Laws (LL.B)",
+  "Master of Technology (M.Tech CSE)",
+  "Master of Business Administration (MBA)",
+  "Master of Computer Applications (MCA)",
+  "M.Sc Computer Science",
+  "Polytechnic Diploma in Engineering",
+  "Class 11 / 12 (Science)",
+  "Class 11 / 12 (Commerce)",
+  "Class 11 / 12 (Arts)"
+];
+
+const COMMON_INSTITUTIONS = [
+  "Gujarat Technological University (GTU), Ahmedabad",
+  "University of Delhi (DU), New Delhi",
+  "University of Mumbai, Mumbai",
+  "Savitribai Phule Pune University, Pune",
+  "Anna University, Chennai",
+  "Visvesvaraya Technological University (VTU), Belagavi",
+  "Bangalore University, Bengaluru",
+  "Dr. A.P.J. Abdul Kalam Technical University (AKTU), Lucknow",
+  "University of Calcutta, Kolkata",
+  "Jadavpur University, Kolkata",
+  "Banaras Hindu University (BHU), Varanasi",
+  "Aligarh Muslim University (AMU), Aligarh",
+  "Jawaharlal Nehru University (JNU), New Delhi",
+  "Osmania University, Hyderabad",
+  "Jawaharlal Nehru Technological University (JNTU), Hyderabad",
+  "University of Madras, Chennai",
+  "University of Rajasthan, Jaipur",
+  "University of Kerala, Thiruvananthapuram",
+  "Panjab University, Chandigarh",
+  "Indian Institute of Technology (IIT) Bombay",
+  "Indian Institute of Technology (IIT) Delhi",
+  "Indian Institute of Technology (IIT) Madras",
+  "National Institute of Technology (NIT) Tiruchirappalli",
+  "BITS Pilani, Rajasthan"
+];
+
 interface ProfilePageProps {
   onProfileUpdated?: (updated: ProfileData) => void;
 }
@@ -105,16 +175,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onProfileUpdated }) =>
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
                 <option value="">Select State / UT</option>
-                <option value="Gujarat">Gujarat</option>
-                <option value="Maharashtra">Maharashtra</option>
-                <option value="Delhi">Delhi</option>
-                <option value="Rajasthan">Rajasthan</option>
-                <option value="Tamil Nadu">Tamil Nadu</option>
-                <option value="Karnataka">Karnataka</option>
-                <option value="Kerala">Kerala</option>
-                <option value="Uttar Pradesh">Uttar Pradesh</option>
-                <option value="Madhya Pradesh">Madhya Pradesh</option>
-                <option value="West Bengal">West Bengal</option>
+                {COMMON_STATES.map((state) => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
               </select>
             </div>
 
@@ -176,28 +239,46 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onProfileUpdated }) =>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Course / Program Name
+                Course / Program Name (Select from list or type to search)
               </label>
-              <input
-                type="text"
-                value={profile.course || ''}
-                onChange={(e) => setProfile({ ...profile, course: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200"
-                placeholder="e.g. Bachelor of Technology (CSE)"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  list="course-options"
+                  value={profile.course || ''}
+                  onChange={(e) => setProfile({ ...profile, course: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  placeholder="Type or select degree / course..."
+                />
+                <datalist id="course-options">
+                  {COMMON_COURSES.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Start typing to see matching degree options or click dropdown arrow</p>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Institution / University Name (Must have AISHE / UDISE code)
+                Institution / University Name (AISHE / UDISE recognized)
               </label>
-              <input
-                type="text"
-                value={profile.institution_name || ''}
-                onChange={(e) => setProfile({ ...profile, institution_name: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200"
-                placeholder="e.g. Gujarat Technological University"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  list="institution-options"
+                  value={profile.institution_name || ''}
+                  onChange={(e) => setProfile({ ...profile, institution_name: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  placeholder="Type or select university / college..."
+                />
+                <datalist id="institution-options">
+                  {COMMON_INSTITUTIONS.map((inst) => (
+                    <option key={inst} value={inst} />
+                  ))}
+                </datalist>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Start typing your college or university name to auto-suggest</p>
             </div>
 
             <div>
