@@ -104,7 +104,7 @@ export const App: React.FC = () => {
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400 font-medium hidden sm:block">
-                  National Scholarship & Government Scheme Guidance Portal
+                  Unified Citizen Gateway for Central & State Welfare Schemes
                 </div>
               </div>
             </div>
@@ -187,7 +187,7 @@ export const App: React.FC = () => {
                         <div className="text-[10px] text-slate-400 truncate">{currentUser.email_or_mobile}</div>
                         {currentUser.is_demo_user && (
                           <span className="inline-block mt-1 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
-                            Demo Student Persona
+                            Demo Citizen Persona
                           </span>
                         )}
                       </div>
@@ -197,7 +197,7 @@ export const App: React.FC = () => {
                         className="w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                       >
                         <User className="w-3.5 h-3.5 text-slate-400" />
-                        <span>My Student Profile</span>
+                        <span>Citizen Profile</span>
                       </button>
 
                       <button
@@ -315,7 +315,7 @@ export const App: React.FC = () => {
             <span>CivicPilot • Independent Citizen Information Assistant</span>
           </div>
           <div className="flex items-center gap-4 text-slate-400 font-mono text-[11px]">
-            <span>Sources: myScheme.gov.in & scholarships.gov.in</span>
+            <span>Sources: myScheme.gov.in, DBT Bharat & National Portals</span>
             <span>•</span>
             <span>Deterministic Rule Evaluation</span>
             <span>•</span>

@@ -224,26 +224,75 @@ class SchemeCatalogService:
                 if level == "Central Government":
                     score += 10
 
-            # 2. Student / Education matching
+            # 2. Occupation & Livelihood matching
+            if profile.occupation:
+                occ_clean = profile.occupation.lower()
+                if "farmer" in occ_clean or "agri" in occ_clean:
+                    if "kisan" in name_lower or "farmer" in name_lower or "agriculture" in tags_lower or "crop" in elig_lower:
+                        score += 35
+                        reasons.append("Designed for farmers & agricultural cultivators")
+                elif "artisan" in occ_clean or "craft" in occ_clean:
+                    if "vishwakarma" in name_lower or "artisan" in elig_lower or "craft" in tags_lower:
+                        score += 35
+                        reasons.append("Targeted for traditional artisans and craftspersons")
+                elif "vendor" in occ_clean or "street" in occ_clean:
+                    if "svanidhi" in name_lower or "vendor" in elig_lower or "micro" in tags_lower:
+                        score += 35
+                        reasons.append("Specialized credit/subsidy for urban & street vendors")
+                elif "senior" in occ_clean or "retired" in occ_clean:
+                    if "pension" in name_lower or "old age" in elig_lower or "senior" in tags_lower:
+                        score += 35
+                        reasons.append("Social security & pension support for senior citizens")
+                elif "student" in occ_clean:
+                    if "scholarship" in name_lower or "fellowship" in name_lower or "education" in tags_lower:
+                        score += 30
+                        reasons.append("Financial assistance & scholarships for students")
+
+            # 3. Landowner matching
+            if profile.is_landowner:
+                if "kisan" in name_lower or "land" in elig_lower or "fasal" in name_lower:
+                    score += 25
+                    reasons.append("Eligible as agricultural landowner")
+
+            # 4. Age matching
+            if profile.age is not None:
+                if profile.age >= 60:
+                    if "senior" in tags_lower or "pension" in name_lower or "vridha" in name_lower:
+                        score += 25
+                        reasons.append("Matches senior citizen age threshold (60+ years)")
+                elif profile.age <= 35:
+                    if "youth" in tags_lower or "employment" in tags_lower or "skill" in tags_lower:
+                        score += 15
+                        reasons.append("Targeted for youth & skill development")
+
+            # 5. Ration card / Food Security matching
+            if profile.ration_card_type:
+                rc_lower = profile.ration_card_type.lower()
+                if "antyodaya" in rc_lower or "aay" in rc_lower or "bpl" in rc_lower:
+                    if "ayushman" in name_lower or "bpl" in elig_lower or "ration" in tags_lower or "pm-jay" in name_lower:
+                        score += 30
+                        reasons.append("Qualifies under NFSA / Priority Household entitlement")
+
+            # 6. Education matching
             if profile.education_level:
                 edu_clean = profile.education_level.lower()
                 if "scholarship" in name_lower or "scholarship" in tags_lower:
-                    score += 25
-                    reasons.append("Targeted for students seeking scholarship funding")
+                    score += 20
+                    reasons.append("Targeted for education & training assistance")
                 if "undergraduate" in edu_clean or "college" in edu_clean or "12th" in edu_clean:
                     if "higher education" in elig_lower or "post-matric" in elig_lower or "college" in elig_lower:
-                        score += 20
+                        score += 15
                         reasons.append(f"Matches your educational stage ({profile.education_level})")
 
-            # 3. Caste / Category matching
+            # 7. Caste / Category matching
             if profile.caste_category:
                 cat_lower = profile.caste_category.lower()
                 if cat_lower != "general":
                     if cat_lower in elig_lower or cat_lower in name_lower or cat_lower in tags_lower:
                         score += 25
-                        reasons.append(f"Has dedicated quota/provisions for {profile.caste_category}")
+                        reasons.append(f"Dedicated provisions for {profile.caste_category}")
 
-            # 4. Income matching
+            # 8. Income matching
             if profile.annual_family_income is not None:
                 if profile.annual_family_income <= 250000:
                     if "low income" in elig_lower or "bpl" in elig_lower or "means" in name_lower or "2,50,000" in elig_lower:
@@ -254,17 +303,17 @@ class SchemeCatalogService:
                         score += 15
                         reasons.append("Matches income threshold under ₹4.5 Lakh")
 
-            # 5. Differently Abled matching
+            # 9. Differently Abled matching
             if profile.is_differently_abled:
                 if "disab" in elig_lower or "differently abled" in elig_lower or "handicapped" in elig_lower:
                     score += 35
                     reasons.append("Includes specialized disability support / reservation")
 
-            # 6. Gender matching
+            # 10. Gender matching
             if profile.gender and profile.gender.lower() == "female":
-                if "girl" in name_lower or "women" in name_lower or "female" in elig_lower:
+                if "girl" in name_lower or "women" in name_lower or "female" in elig_lower or "mahila" in name_lower:
                     score += 25
-                    reasons.append("Special benefits for female students")
+                    reasons.append("Special benefits for women / girl children")
 
             if score > 0:
                 slug = s["_clean_slug"]

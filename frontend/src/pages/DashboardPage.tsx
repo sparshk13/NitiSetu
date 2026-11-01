@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  GraduationCap, 
+  Building2, 
   FileCheck2, 
   Bot, 
   ArrowRight, 
@@ -10,8 +10,12 @@ import {
   ExternalLink,
   Sparkles,
   ShieldCheck,
-  Building2,
-  Banknote
+  User,
+  IndianRupee,
+  Tractor,
+  HeartPulse,
+  Home,
+  Briefcase
 } from 'lucide-react';
 import { api, ProfileData, SchemeItem, UserDocument } from '../api/client';
 
@@ -31,7 +35,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
       setLoading(true);
       const [profData, schemesData, docsData] = await Promise.all([
         initialProfile ? Promise.resolve(initialProfile) : api.getProfile(),
-        api.listSchemes({ level: 'Central Government' }),
+        api.listSchemes({ level: 'Central Government', page_size: 6 }),
         api.listDocuments()
       ]);
       setProfile(profData);
@@ -53,14 +57,13 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-xs font-medium text-emerald-400 mb-4">
             <ShieldCheck className="w-3.5 h-3.5" />
-            National Citizen Welfare & Scholarship Registry
+            Unified Citizen Welfare & Scheme Gateway
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
             Welcome back, {profile?.full_name || 'Citizen'}
           </h1>
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
-            CivicPilot connects citizens to 850+ official Indian government scholarships and welfare schemes. 
-            Evaluate your eligibility deterministically against Gazette guidelines, query official notifications, and prepare verified applications.
+            CivicPilot connects citizens across India to 2,000+ official Central and State Government schemes — covering agriculture, healthcare, housing, pensions, livelihoods, and education. Evaluate your eligibility deterministically against official Gazette guidelines, verify documents, and prepare validated applications.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -68,8 +71,8 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
               onClick={() => onNavigate('discovery')}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all shadow-sm"
             >
-              <GraduationCap className="w-4 h-4" />
-              Discover Scholarships
+              <Building2 className="w-4 h-4" />
+              Discover Schemes & Benefits
             </button>
             <button
               onClick={() => onNavigate('assistant')}
@@ -79,7 +82,75 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
               Policy Guidelines Explainer
             </button>
           </div>
+        </div>
+      </div>
 
+      {/* Citizen Key Sectors Banner */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+        <div 
+          onClick={() => onNavigate('discovery')}
+          className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+            <Tractor className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-slate-800">Agriculture</div>
+          <div className="text-[10px] text-slate-400">PM-KISAN, PMFBY</div>
+        </div>
+
+        <div 
+          onClick={() => onNavigate('discovery')}
+          className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+            <HeartPulse className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-slate-800">Healthcare</div>
+          <div className="text-[10px] text-slate-400">Ayushman Bharat</div>
+        </div>
+
+        <div 
+          onClick={() => onNavigate('discovery')}
+          className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+            <Home className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-slate-800">Housing</div>
+          <div className="text-[10px] text-slate-400">PMAY Urban/Gramin</div>
+        </div>
+
+        <div 
+          onClick={() => onNavigate('discovery')}
+          className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+            <Briefcase className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-slate-800">Livelihood</div>
+          <div className="text-[10px] text-slate-400">Vishwakarma, Mudra</div>
+        </div>
+
+        <div 
+          onClick={() => onNavigate('discovery')}
+          className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-slate-800">Pensions</div>
+          <div className="text-[10px] text-slate-400">Atal Pension, IGNOAPS</div>
+        </div>
+
+        <div 
+          onClick={() => onNavigate('discovery')}
+          className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+            <Building2 className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-slate-800">Education</div>
+          <div className="text-[10px] text-slate-400">Scholarships & Skills</div>
         </div>
       </div>
 
@@ -88,16 +159,31 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Student Profile</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Citizen Profile</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
-                {profile?.completeness_percentage || (profile?.full_name ? 15 : 0)}% Complete
+                {profile?.completeness_percentage || (profile?.full_name ? 40 : 0)}% Complete
               </span>
             </div>
-            <div className="text-lg font-bold text-slate-900">{profile?.course || 'Degree / Course Not Set'}</div>
-            <p className="text-xs text-slate-500 mt-1">{profile?.institution_name || 'Institution details pending'}</p>
+            <div className="text-lg font-bold text-slate-900">
+              {profile?.occupation || 'Primary Occupation Not Set'}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              {profile?.state_code ? `${profile.state_code} Domicile` : 'State not set'} • {profile?.caste_category || 'General'}
+              {profile?.age ? ` • ${profile.age} years` : ''}
+            </p>
+            {profile?.course && (
+              <p className="text-[11px] text-blue-600 font-medium mt-1 truncate">
+                📚 Studying: {profile.course}
+              </p>
+            )}
+            {profile?.is_landowner && (
+              <p className="text-[11px] text-emerald-600 font-medium mt-1">
+                🌾 Landowner: {profile.land_holding_acres ? `${profile.land_holding_acres} Acres` : 'Cultivable Land'}
+              </p>
+            )}
           </div>
           <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs">
-            <span className="text-slate-500">{profile?.state_code || 'Domicile not set'} • {profile?.caste_category || 'General'}</span>
+            <span className="text-slate-500">{profile?.ration_card_type || 'General Citizen'}</span>
             <button 
               onClick={() => onNavigate('profile')} 
               className="font-medium text-blue-600 hover:text-blue-700"
@@ -120,7 +206,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
             </div>
             <p className="text-xs text-slate-500 mt-1">
               {hasIncome 
-                ? 'Evaluated against Gazette scholarship ceilings' 
+                ? 'Evaluated against Gazette welfare income criteria & DBT ceilings' 
                 : 'Add annual income to evaluate means-tested eligibility'}
             </p>
           </div>
@@ -154,8 +240,8 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
             </div>
             <p className="text-xs text-slate-500 mt-1">
               {documents.length > 0 
-                ? 'Verified certificates ready for application mapping' 
-                : 'Upload Aadhaar & Income Certificate to verify'}
+                ? 'Verified certificates ready for scheme application mapping' 
+                : 'Upload Aadhaar, Ration Card & Income Certificate'}
             </p>
           </div>
           <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs">
@@ -178,13 +264,13 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
               <Sparkles className="w-5 h-5 text-amber-500" />
               Recommended Schemes for Your Profile
             </h2>
-            <p className="text-xs text-slate-500">Derived deterministically from your education level, income bracket, and social category.</p>
+            <p className="text-xs text-slate-500">Derived deterministically from your occupation, domicile state, household income, and social category.</p>
           </div>
           <button
             onClick={() => onNavigate('discovery')}
             className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
           >
-            View all 852 scholarships <ArrowRight className="w-4 h-4" />
+            Explore all 2,000+ Schemes <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
@@ -241,8 +327,8 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
       <div className="p-4 rounded-xl bg-slate-100/80 border border-slate-200 text-xs text-slate-600 flex items-start gap-3">
         <Building2 className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
         <div>
-          <strong className="text-slate-800">Public Information Notice & Provenance:</strong> CivicPilot is an independent civic discovery tool developed to assist citizens. 
-          All scheme rules, eligibility caps, benefits, and guidelines are mirrored directly from official gazette sources (including <a href="https://scholarships.gov.in" target="_blank" rel="noreferrer" className="text-blue-600 underline">scholarships.gov.in</a> and <a href="https://www.myscheme.gov.in" target="_blank" rel="noreferrer" className="text-blue-600 underline">myScheme.gov.in</a>). 
+          <strong className="text-slate-800">Public Information Notice & Provenance:</strong> CivicPilot is an independent civic discovery platform designed to assist every citizen across India. 
+          All scheme rules, eligibility caps, benefits, and guidelines are mirrored directly from official government gazette sources (including <a href="https://www.myscheme.gov.in" target="_blank" rel="noreferrer" className="text-blue-600 underline">myScheme.gov.in</a> and <a href="https://scholarships.gov.in" target="_blank" rel="noreferrer" className="text-blue-600 underline">scholarships.gov.in</a>). 
           CivicPilot does not grant or guarantee welfare benefits.
         </div>
       </div>

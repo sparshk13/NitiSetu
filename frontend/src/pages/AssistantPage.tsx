@@ -77,10 +77,10 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({ initialSchemeSlug,
         }
       ] : [
         {
-          source_title: "Direct Benefit Transfer (DBT) & Welfare Guidelines — Gazette of India",
+          source_title: "Direct Benefit Transfer (DBT) & Citizen Welfare Guidelines — Gazette of India",
           source_url: "https://www.myscheme.gov.in/",
-          section_title: "Unified Citizen Welfare Norms",
-          excerpt: "Single-window DBT framework delivering government scholarships, educational subsidies, and welfare benefits directly to verified bank accounts."
+          section_title: "Unified Citizen Welfare & DBT Norms",
+          excerpt: "Single-window DBT framework delivering agriculture support, health assurance, housing subsidies, pensions, and educational benefits directly to verified citizen bank accounts."
         }
       ],
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -100,10 +100,12 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({ initialSchemeSlug,
       ];
     }
     return [
-      "What are the common family income limits for scholarships?",
-      "Can I receive two government scholarships at the same time?",
-      "What documents are needed for One Time Registration (OTR)?",
-      "How does Direct Benefit Transfer (DBT) disbursal work?"
+      "PM-KISAN: What are the landholding and eligibility rules for farmers?",
+      "Ayushman Bharat: Who qualifies for the ₹5 Lakh free health cover?",
+      "PMAY: What are the subsidy amounts and eligibility for housing?",
+      "Atal Pension Yojana: What are the age limits and monthly pensions?",
+      "What are the common family income limits for government welfare schemes?",
+      "How does Direct Benefit Transfer (DBT) and Aadhaar seeding work?"
     ];
   };
 

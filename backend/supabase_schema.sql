@@ -12,18 +12,47 @@ CREATE EXTENSION IF NOT EXISTS "vector";
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     full_name TEXT,
+    age INTEGER,
+    gender TEXT,
+    marital_status TEXT,
     state_code TEXT,
+    district TEXT,
+    area_type TEXT DEFAULT 'Rural',
+    occupation TEXT,
+    annual_family_income NUMERIC(12, 2),
+    ration_card_type TEXT,
+    caste_category TEXT,
+    is_minority_community BOOLEAN DEFAULT false,
+    is_differently_abled BOOLEAN DEFAULT false,
+    is_landowner BOOLEAN DEFAULT false,
+    land_holding_acres NUMERIC(10, 2),
+    has_bank_account BOOLEAN DEFAULT true,
+    is_bank_aadhaar_seeded BOOLEAN DEFAULT true,
+    highest_qualification TEXT,
+    is_student_currently BOOLEAN DEFAULT false,
     education_level TEXT,
     course TEXT,
     study_year INTEGER,
     institution_name TEXT,
-    annual_family_income NUMERIC(12, 2),
-    caste_category TEXT,
-    gender TEXT,
-    is_differently_abled BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Idempotent column additions for existing profiles table
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS age INTEGER;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gender TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS marital_status TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS district TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS area_type TEXT DEFAULT 'Rural';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS occupation TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ration_card_type TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_minority_community BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_landowner BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS land_holding_acres NUMERIC(10, 2);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS has_bank_account BOOLEAN DEFAULT true;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_bank_aadhaar_seeded BOOLEAN DEFAULT true;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS highest_qualification TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_student_currently BOOLEAN DEFAULT false;
 
 -- 3. Schemes Master Table
 CREATE TABLE IF NOT EXISTS public.schemes (

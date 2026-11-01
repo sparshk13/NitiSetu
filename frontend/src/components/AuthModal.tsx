@@ -88,7 +88,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess, onClose
             </div>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed mt-2">
-            Sign in to access personalized government scholarship recommendations, eligibility evaluations, and application assistance.
+            Sign in to access personalized government scheme recommendations, eligibility evaluations, and citizen application assistance.
           </p>
         </div>
 

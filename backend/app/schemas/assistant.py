@@ -22,4 +22,8 @@ class AssistantQueryResponse(BaseModel):
     insufficient_evidence: bool = Field(False, description="True if official documents do not contain adequate facts to answer")
     conversation_id: Optional[str] = None
     disclaimer: str = "Grounded in official Government of India guidelines. Independent civic information, not legal advice."
-
+    verification_status: Optional[str] = Field("verified", description="LLM-as-a-judge verification status: verified, revised, or insufficient_evidence")
+    confidence_score: Optional[float] = Field(1.0, description="Factuality and grounding score from 0.0 to 1.0")
+    key_facts: List[str] = Field(default=[], description="Structured key facts, caps, or requirements")
+    matched_scheme_name: Optional[str] = Field(None, description="Resolved scheme name from query context")
+    detected_intent: Optional[str] = Field(None, description="Categorized user intent, e.g. Income Ceiling, Documents Required")

@@ -56,3 +56,27 @@ def test_national_scholarship_missing_income():
     assert result.status == EligibilityStatusEnum.NEEDS_INFORMATION
     assert "annual_family_income" in result.missing_fields
 
+
+def test_farmer_pm_kisan_eligible():
+    """Farmer with agricultural land ownership qualifies for PM-KISAN."""
+    profile = {
+        "occupation": "Farmer (Cultivator / Landowner)",
+        "is_landowner": True,
+        "land_holding_acres": 2.5,
+        "is_bank_aadhaar_seeded": True
+    }
+    result = eligibility_engine.evaluate("pm-kisan", profile)
+    assert result.status == EligibilityStatusEnum.POTENTIALLY_ELIGIBLE
+    assert any(r.rule_key == "is_landowner" and r.passed is True for r in result.matched_rules)
+
+
+def test_citizen_ayushman_bharat_eligible():
+    """Citizen with BPL ration card qualifies for Ayushman Bharat health cover."""
+    profile = {
+        "ration_card_type": "BPL / Priority Household (PHH)",
+        "annual_family_income": 180000.0
+    }
+    result = eligibility_engine.evaluate("ayushman-bharat-pmjay", profile)
+    assert result.status == EligibilityStatusEnum.POTENTIALLY_ELIGIBLE
+
+

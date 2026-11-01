@@ -107,7 +107,7 @@ class DeterministicEligibilityEngine:
             # 3. Educational Stage / Occupation
             if "occupation_in" in conditions:
                 allowed_occupations = conditions["occupation_in"]
-                user_occ = profile_data.get("student_status") or ("Student" if profile_data.get("education_level") else None)
+                user_occ = profile_data.get("occupation") or profile_data.get("student_status") or ("Student" if profile_data.get("education_level") else None)
 
                 rule = EvaluatedRule(
                     rule_key="occupation",
@@ -119,7 +119,7 @@ class DeterministicEligibilityEngine:
                 )
 
                 if not user_occ:
-                    missing_fields.append("education_level")
+                    missing_fields.append("occupation")
                     rule.passed = None
                 elif any(o.lower() in user_occ.lower() for o in allowed_occupations):
                     rule.passed = True
@@ -128,7 +128,83 @@ class DeterministicEligibilityEngine:
                     rule.passed = False
                     failed_rules.append(rule)
 
-            # 4. Highest Qualification
+            # 4. Landowner Condition (e.g. PM-KISAN)
+            if "is_landowner" in conditions:
+                expected_landowner = conditions["is_landowner"]
+                user_landowner = profile_data.get("is_landowner")
+
+                rule = EvaluatedRule(
+                    rule_key="is_landowner",
+                    condition_description="Must own cultivable agricultural land (in land records)",
+                    required=True,
+                    expected_value=expected_landowner,
+                    user_value=user_landowner,
+                    source_section="Operational Guidelines, Clause 2 (Landholding Norms)"
+                )
+
+                if user_landowner is None:
+                    missing_fields.append("is_landowner")
+                    rule.passed = None
+                elif bool(user_landowner) == bool(expected_landowner):
+                    rule.passed = True
+                    matched_rules.append(rule)
+                else:
+                    rule.passed = False
+                    failed_rules.append(rule)
+
+            # 5. Food Security / Ration Card Condition (e.g. Ayushman Bharat)
+            if "ration_card_type_in" in conditions:
+                allowed_cards = conditions["ration_card_type_in"]
+                user_card = profile_data.get("ration_card_type")
+
+                rule = EvaluatedRule(
+                    rule_key="ration_card_type",
+                    condition_description=f"Ration card category must be: {', '.join(allowed_cards)}",
+                    required=True,
+                    expected_value=allowed_cards,
+                    user_value=user_card,
+                    source_section="Target Beneficiary Identification via SECC/NFSA"
+                )
+
+                if not user_card:
+                    if profile_data.get("annual_family_income") and float(profile_data.get("annual_family_income")) <= 250000:
+                        rule.passed = True
+                        matched_rules.append(rule)
+                    else:
+                        missing_fields.append("ration_card_type")
+                        rule.passed = None
+                elif any(c.lower() in str(user_card).lower() for c in allowed_cards):
+                    rule.passed = True
+                    matched_rules.append(rule)
+                else:
+                    rule.passed = False
+                    failed_rules.append(rule)
+
+            # 6. Age Norms
+            if "age_min" in conditions:
+                min_age = conditions["age_min"]
+                user_age = profile_data.get("age")
+
+                rule = EvaluatedRule(
+                    rule_key="age",
+                    condition_description=f"Minimum age must be {min_age} years",
+                    required=True,
+                    expected_value=min_age,
+                    user_value=user_age,
+                    source_section="Age Eligibility Norms"
+                )
+
+                if user_age is None:
+                    # Non-blocking if age not yet recorded
+                    pass
+                elif int(user_age) >= min_age:
+                    rule.passed = True
+                    matched_rules.append(rule)
+                else:
+                    rule.passed = False
+                    failed_rules.append(rule)
+
+            # 7. Highest Qualification
             if "highest_qualification_in" in conditions:
                 allowed_quals = conditions["highest_qualification_in"]
                 user_qual = profile_data.get("education_level")

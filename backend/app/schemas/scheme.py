@@ -49,9 +49,14 @@ class SchemeDetailResponse(BaseModel):
 
 class SchemeRecommendationRequest(BaseModel):
     state_code: Optional[str] = None
+    occupation: Optional[str] = None
+    age: Optional[int] = None
     education_level: Optional[str] = None
     caste_category: Optional[str] = None
     annual_family_income: Optional[float] = None
+    ration_card_type: Optional[str] = None
+    is_landowner: Optional[bool] = False
+    highest_qualification: Optional[str] = None
     gender: Optional[str] = None
     is_differently_abled: Optional[bool] = False
     limit: int = 10

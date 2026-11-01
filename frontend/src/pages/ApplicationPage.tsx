@@ -53,7 +53,7 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
     }
   }, [selectedSchemeSlug]);
 
-  const isProfileIncomplete = !profile.full_name || !profile.course || !profile.annual_family_income;
+  const isProfileIncomplete = !profile.full_name || profile.annual_family_income === undefined;
 
   const runDemoAutomation = () => {
     setDemoState('running');
@@ -64,17 +64,24 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
     const appMode = schemeDetail?.application_mode || 'Online DBT Citizen Portal';
     const citizenName = profile.full_name || 'Applicant Citizen';
     const domicile = profile.state_code || 'Domicile State';
-    const institution = profile.institution_name || 'Affiliated Institution / Organization';
+    const occupation = profile.occupation || 'Citizen';
+    const isStudent = profile.is_student_currently || profile.occupation?.toLowerCase().includes('student');
+    const isFarmer = profile.is_landowner || profile.occupation?.toLowerCase().includes('farmer');
     const incomeStr = profile.annual_family_income 
       ? `₹${Number(profile.annual_family_income).toLocaleString('en-IN')}` 
       : '₹2,50,000 (Ceiling threshold)';
 
     const steps = [
       `Initializing controlled sandbox for ${schemeName}...`,
-      `Validating applicant profile credentials: ${citizenName}, Domicile: ${domicile}...`,
+      `Validating applicant profile credentials: ${citizenName}, Domicile: ${domicile}, Occupation: ${occupation}...`,
       `Routing to official delivery authority: ${ministry} (${appMode})...`,
-      `Populating Academic & Enrollment Data: ${institution} (${profile.course || 'Degree Program'})...`,
+      isFarmer
+        ? `Mapping agricultural landholding: ${profile.land_holding_acres ? `${profile.land_holding_acres} Acres` : 'Cultivable Land'} cross-verified with State Revenue Records (Khasra/RoR)...`
+        : isStudent
+          ? `Populating Academic & Enrollment Data: ${profile.institution_name || 'Recognized Institute'} (${profile.course || 'Degree Program'})...`
+          : `Mapping citizen category: ${occupation}, Highest Qualification: ${profile.highest_qualification || 'Verified'}...`,
       `Mapping means test: Annual Income ${incomeStr} verified against gazette eligibility criteria...`,
+      `Cross-verifying NPCI Aadhaar Payment Bridge (APB) bank seeding for Direct Benefit Transfer (DBT)...`,
       `Validating document attachments against ${schemeName} document checklist...`,
       'Controlled Portal: Form drafted and validated successfully in sandbox.',
       'SAFETY GUARDRAIL APPLIED: Final submission aborted in accordance with policy. Application draft preserved for citizen review.'
@@ -202,16 +209,24 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
           </div>
 
           <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 space-y-1">
-            <span className="text-slate-400 font-mono">3. Institution AISHE / Name</span>
-            <div className={`font-semibold ${profile.institution_name ? 'text-slate-800' : 'text-slate-400 italic'}`}>
-              {profile.institution_name || 'Not set'}
+            <span className="text-slate-400 font-mono">3. Primary Occupation / Category</span>
+            <div className={`font-semibold ${profile.occupation ? 'text-slate-800' : 'text-slate-400 italic'}`}>
+              {profile.occupation || 'General Citizen'}
             </div>
           </div>
 
           <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 space-y-1">
-            <span className="text-slate-400 font-mono">4. Course / Program</span>
-            <div className={`font-semibold ${profile.course ? 'text-slate-800' : 'text-slate-400 italic'}`}>
-              {profile.course || 'Not set'}
+            <span className="text-slate-400 font-mono">4. Livelihood / Sector Details</span>
+            <div className="font-semibold text-slate-800 truncate">
+              {profile.is_landowner 
+                ? `🌾 Landowner: ${profile.land_holding_acres ? `${profile.land_holding_acres} Acres` : 'Cultivable Land'}` 
+                : profile.course 
+                  ? `🎓 Enrolled: ${profile.course}` 
+                  : profile.highest_qualification 
+                    ? `📜 Qual: ${profile.highest_qualification}` 
+                    : profile.ration_card_type 
+                      ? `🍱 Ration: ${profile.ration_card_type}`
+                      : 'Verified Citizen'}
             </div>
           </div>
 
@@ -223,9 +238,9 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
           </div>
 
           <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 space-y-1">
-            <span className="text-slate-400 font-mono">6. Social Category</span>
+            <span className="text-slate-400 font-mono">6. Social Category & DBT Linkage</span>
             <div className={`font-semibold ${profile.caste_category ? 'text-slate-800' : 'text-slate-400 italic'}`}>
-              {profile.caste_category || 'General'}
+              {profile.caste_category || 'General'} • {profile.is_bank_aadhaar_seeded !== false ? 'NPCI Seeded' : 'Aadhaar Pending'}
             </div>
           </div>
         </div>

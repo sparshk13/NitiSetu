@@ -119,15 +119,16 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ profile, initialSc
     });
   };
 
-  // Universal checklist items for any government scheme
+  // Universal checklist items for any government citizen scheme
   const universalChecklist = [
-    { title: "Aadhaar Card (UIDAI / Identity)", keys: ["aadhaar", "uidai", "identity"], req: "Mandatory for all DBT schemes" },
-    { title: "Income Certificate (Tehsildar / Revenue)", keys: ["income", "revenue", "tahsildar"], req: "Current Financial Year" },
-    { title: "Academic Marksheet / Certificate", keys: ["mark", "score", "grade", "10th", "12th", "degree"], req: "Prior qualifying examination" },
-    { title: "Domicile / Residence Certificate", keys: ["domicile", "residence", "native"], req: "State welfare eligibility" },
-    { title: "Caste / Category Certificate (SC/ST/OBC/EWS)", keys: ["caste", "category", "obc", "sc", "st", "ews"], req: "Affirmative action / category schemes" },
-    { title: "Bank Passbook / Aadhaar Seeded Account", keys: ["bank", "passbook", "account", "dbt"], req: "Mandatory for Direct Benefit Transfer" },
-    { title: "Bonafide Student / Enrollment Certificate", keys: ["bonafide", "enrollment", "study", "college"], req: "Higher education & scholarship schemes" }
+    { title: "Aadhaar Card (UIDAI / Identity)", keys: ["aadhaar", "uidai", "identity"], req: "Mandatory for all DBT citizen schemes" },
+    { title: "Ration Card (NFSA / BPL / AAY / Food Security)", keys: ["ration", "bpl", "aay", "food", "nfsa"], req: "Healthcare & subsidized food schemes" },
+    { title: "Income Certificate (Tehsildar / Revenue)", keys: ["income", "revenue", "tahsildar"], req: "Current Financial Year Means Check" },
+    { title: "Domicile / Residence Certificate", keys: ["domicile", "residence", "native"], req: "State welfare eligibility & local quotas" },
+    { title: "Caste / Category Certificate (SC/ST/OBC/EWS)", keys: ["caste", "category", "obc", "sc", "st", "ews"], req: "Social justice & affirmative action schemes" },
+    { title: "Bank Passbook / Aadhaar Seeded Account", keys: ["bank", "passbook", "account", "dbt"], req: "Mandatory for Direct Benefit Transfer (NPCI linked)" },
+    { title: "Land Ownership Records (7/12, 8A, Khasra, RoR)", keys: ["land", "7/12", "khasra", "khatauni", "ror"], req: "Agriculture & farmer schemes (PM-KISAN)" },
+    { title: "Educational Marksheet / Trade Certificate", keys: ["mark", "score", "grade", "10th", "12th", "degree", "diploma", "iti"], req: "Skill development, employment & scholarship schemes" }
   ];
 
   return (
