@@ -409,22 +409,29 @@ class RAGAssistantService:
         return scored[:top_k]
 
     def _call_gemini_chat(self, prompt: str, model_name: str) -> Optional[str]:
-        """Call Gemini API via clean Chat interface to avoid AFC warnings and optimize latency."""
+        """Call Gemini API via clean Chat interface with automatic resilient model failover."""
         api_key = settings.gemini_api_key or os.getenv("GEMINI_API_KEY")
         if not api_key or "your_" in api_key.lower() or "placeholder" in api_key.lower():
             return None
 
-        try:
-            from google import genai
-            client = genai.Client(api_key=api_key)
-            chat = client.chats.create(model=model_name)
-            response = chat.send_message(prompt)
-            if response and response.text:
-                return response.text.strip()
-            return None
-        except Exception as e:
-            logger.warning(f"Gemini call with {model_name} failed: {e}")
-            return None
+        candidate_models = [model_name]
+        for fallback in ["gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-3.5-flash"]:
+            if fallback not in candidate_models:
+                candidate_models.append(fallback)
+
+        for m in candidate_models:
+            try:
+                from google import genai
+                client = genai.Client(api_key=api_key)
+                chat = client.chats.create(model=m)
+                response = chat.send_message(prompt)
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as e:
+                logger.warning(f"Gemini call with {m} failed: {e}")
+                continue
+
+        return None
 
     def _judge_cross_verify(
         self,
@@ -457,10 +464,12 @@ class RAGAssistantService:
             "}"
         )
 
-        raw_judge_res = self._call_gemini_chat(judge_prompt, settings.gemini_judge_model)
+        judge_model = getattr(settings, "gemini_judge_model", "gemini-3.1-flash-lite")
+        gen_model = getattr(settings, "gemini_generation_model", "gemini-3.5-flash")
+        raw_judge_res = self._call_gemini_chat(judge_prompt, judge_model)
         if not raw_judge_res:
             # Fallback to generation model if judge model unavailable
-            raw_judge_res = self._call_gemini_chat(judge_prompt, settings.gemini_generation_model)
+            raw_judge_res = self._call_gemini_chat(judge_prompt, gen_model)
 
         if raw_judge_res:
             try:

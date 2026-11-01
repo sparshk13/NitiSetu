@@ -20,9 +20,10 @@ class Settings(BaseSettings):
 
     # Google Gemini AI Settings
     gemini_api_key: Optional[str] = None
-    gemini_generation_model: str = "gemini-2.5-flash"
-    gemini_embedding_model: str = "text-embedding-004"
-    gemini_embedding_dimensions: int = 768
+    gemini_generation_model: str = "gemini-3.5-flash"
+    gemini_judge_model: str = "gemini-3.1-flash-lite"
+    gemini_embedding_model: str = "gemini-embedding-001"
+    gemini_embedding_dimensions: int = 3072
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env", "backend/.env"),
@@ -32,4 +33,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
