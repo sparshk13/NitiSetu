@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "NitiSetu — AI-Powered Government Scheme Discovery & Application Assistant",
   "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "test": "pytest",
     "cleanup": "python3 scripts/cleanup.py --dry-run",
-    "cleanup:apply": "python3 scripts/cleanup.py --apply",
-    "cleanup:report": "python3 scripts/cleanup.py --report"
+    "cleanup:apply": "python3 scripts/cleanup.py --apply"
   },
   "keywords": [
     "nitisetu",

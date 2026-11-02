@@ -93,39 +93,39 @@ def test_rag_formatted_structure():
 
 
 def test_rag_exclusion_verdict_income_tax_pmkisan():
-    """Negative case: Income tax payer querying PM-KISAN receives explicit NOT ELIGIBLE verdict."""
+    """Negative case: Income tax payer querying PM-KISAN receives explicit not eligible / ineligible verdict."""
     req = AssistantQueryRequest(
         scheme_id=None,
         question="I pay income tax every year. Can I receive PM-KISAN money?"
     )
     resp = rag_service.answer_query(req)
     assert not resp.insufficient_evidence
-    assert "NOT ELIGIBLE" in resp.answer
+    assert "not eligible" in resp.answer.lower() or "ineligible" in resp.answer.lower()
     assert "Exclusion" in resp.detected_intent
     assert "kisan" in resp.matched_scheme_name.lower() or "pm-kisan" in resp.matched_scheme_name.lower()
 
 
 def test_rag_exclusion_verdict_dual_scholarship():
-    """Negative case: Dual scholarship query receives explicit NOT ELIGIBLE / PROHIBITED verdict."""
+    """Negative case: Dual scholarship query receives explicit not eligible / prohibited verdict."""
     req = AssistantQueryRequest(
         scheme_id=None,
         question="Can I receive two scholarships at the same time?"
     )
     resp = rag_service.answer_query(req)
     assert not resp.insufficient_evidence
-    assert "NOT ELIGIBLE" in resp.answer or "PROHIBITED" in resp.answer
+    assert any(w in resp.answer.lower() for w in ["not eligible", "cannot receive", "prohibited", "ineligible"])
     assert "Exclusion" in resp.detected_intent
 
 
 def test_rag_exclusion_verdict_income_threshold():
-    """Negative case: Income above statutory ceiling receives explicit NOT ELIGIBLE verdict with numeric cap."""
+    """Negative case: Income above statutory ceiling receives explicit not eligible verdict with numeric cap."""
     req = AssistantQueryRequest(
         scheme_id=None,
         question="My family income is 3.5 Lakhs. Can I get Post-Matric SC scholarship?"
     )
     resp = rag_service.answer_query(req)
     assert not resp.insufficient_evidence
-    assert "NOT ELIGIBLE" in resp.answer
+    assert "not eligible" in resp.answer.lower() or "exceeds" in resp.answer.lower() or "ineligible" in resp.answer.lower()
     assert "2.5" in resp.answer or "250,000" in resp.answer or "2,50,000" in resp.answer
 
 

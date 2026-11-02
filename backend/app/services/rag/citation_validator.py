@@ -1,5 +1,5 @@
 import re
-from typing import List, Tuple, Dict, Any, Optional
+from typing import List, Tuple
 from backend.app.schemas.assistant import SourceCitation
 from backend.app.services.rag.chunking import UnifiedChunk
 

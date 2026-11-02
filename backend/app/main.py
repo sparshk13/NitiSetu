@@ -35,7 +35,6 @@ app.add_middleware(
 app.include_router(api_router)
 
 
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(

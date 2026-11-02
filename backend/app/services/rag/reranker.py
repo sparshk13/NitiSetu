@@ -20,7 +20,6 @@ class Reranker:
             return []
 
         q_lower = query.lower()
-        q_tokens = set(re.findall(r'\b[a-zA-Z0-9]{3,}\b', q_lower))
         reranked = []
 
         for chunk, base_score in candidates:

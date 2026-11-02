@@ -1,4 +1,3 @@
-import os
 import re
 import json
 import uuid
@@ -6,9 +5,8 @@ import time
 import logging
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Set, Any
-from backend.app.config import settings
-from backend.app.schemas.assistant import AssistantQueryRequest, AssistantQueryResponse, SourceCitation
+from typing import Dict, List, Optional, Tuple, Set
+from backend.app.schemas.assistant import AssistantQueryRequest, AssistantQueryResponse
 from backend.app.services.scheme_service import scheme_service
 from backend.app.services.rag import (
     document_processor,
@@ -20,7 +18,6 @@ from backend.app.services.rag import (
     context_builder,
     answer_generator,
     citation_validator,
-    rag_evaluator,
     ABSTENTION_MESSAGE,
     UnifiedChunk,
     ChunkMetadata

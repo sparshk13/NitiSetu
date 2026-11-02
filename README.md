@@ -41,11 +41,12 @@
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/         # REST API endpoints (schemes, eligibility, assistant, documents, drafts)
-│   │   ├── services/       # Domain business logic (eligibility_engine, rag_service, etc.)
+│   │   ├── services/       # Domain business logic (eligibility_engine, scheme_service, etc.)
+│   │   │   └── rag/        # Modular RAG architecture (hybrid retriever, chunking, reranking, validator)
 │   │   ├── schemas/        # Pydantic validation contracts
 │   │   ├── db/             # SQLAlchemy ORM models & database session
 │   │   └── config.py       # Application settings & environment
-│   ├── tests/              # Comprehensive pytest test suite (21 automated tests)
+│   ├── tests/              # Comprehensive pytest test suite (42 automated tests across all modules)
 │   ├── requirements.txt    # Backend Python dependencies
 │   └── supabase_schema.sql # Relational & pgvector schema with RLS policies
 │
@@ -59,7 +60,7 @@
 │   └── vercel.json         # Vercel SPA routing configuration
 │
 ├── data/                   # Verified scheme catalogs and official gazette guidelines
-├── scripts/                # Repository maintenance & cleanup tools
+├── scripts/                # Dataset generation & repository maintenance tools
 ├── Dockerfile              # Production backend Docker image
 ├── docker-compose.yml      # Multi-container local orchestration
 └── render.yaml             # Cloud infrastructure specification

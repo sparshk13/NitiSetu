@@ -1,7 +1,7 @@
 import re
 import math
 import logging
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional
 import numpy as np
 from backend.app.services.rag.chunking import UnifiedChunk, ChunkMetadata
 from backend.app.services.rag.embeddings import embedding_service
