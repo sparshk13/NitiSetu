@@ -40,17 +40,57 @@ class SchemeCatalogService:
                     self._schemes.append(s)
                     self._schemes_by_slug[slug] = s
 
-                # Register canonical aliases for flagship hackathon demo schemes
+                # Register canonical aliases for flagship demo schemes
                 aliases = {
                     "national-scholarship-post-matric": "csspostmsossi",
                     "pm-usp-central-sector-scheme": "csspostmsossi",
+                    "pm-vishwakarma": "pmv",
+                    "pm-surya-ghar-muft-bijli": "pmsgmb",
+                    "pm-awas-yojana": "pmay-u",
+                    "pmay": "pmay-u",
+                    "pmay-urban": "pmay-u",
+                    "pmay-gramin": "pmay-u",
+                    "kisan-credit-card": "kcc",
+                    "mudra": "pmmy",
+                    "sukanya-samriddhi-yojana": "ssy",
+                    "atal-pension-yojana": "apy",
                 }
                 for alias_slug, target_slug in aliases.items():
                     if target_slug in self._schemes_by_slug:
                         alias_scheme = dict(self._schemes_by_slug[target_slug])
                         alias_scheme["_clean_slug"] = alias_slug
-                        alias_scheme["Scheme Name"] = "National Post-Matric Scholarship Scheme for SC/ST/OBC Students"
+                        if alias_slug == "national-scholarship-post-matric":
+                            alias_scheme["Scheme Name"] = "National Post-Matric Scholarship Scheme for SC/ST/OBC Students"
+                        elif alias_slug == "pm-vishwakarma":
+                            alias_scheme["Scheme Name"] = "PM Vishwakarma"
+                        elif alias_slug == "pm-surya-ghar-muft-bijli":
+                            alias_scheme["Scheme Name"] = "PM - Surya Ghar: Muft Bijli Yojana"
+                        elif alias_slug == "pm-awas-yojana":
+                            alias_scheme["Scheme Name"] = "Pradhan Mantri Awas Yojana (PMAY)"
                         self._schemes_by_slug[alias_slug] = alias_scheme
+
+                # Ensure Ayushman Bharat is registered
+                if "ayushman-bharat-pmjay" not in self._schemes_by_slug:
+                    ayushman_scheme = {
+                        "_clean_slug": "ayushman-bharat-pmjay",
+                        "Scheme Slug": "ayushman-bharat-pmjay",
+                        "Scheme Name": "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana (PM-JAY)",
+                        "Level": "Central Government",
+                        "State / UT / Ministry": "National Health Authority, Ministry of Health & Family Welfare",
+                        "Brief Description": "World's largest healthcare assurance scheme offering ₹5,00,000 cashless hospitalization cover per family per year.",
+                        "Description": "Ayushman Bharat PM-JAY is the world's largest government-funded health assurance scheme targeting over 12 crore poor and vulnerable families (bottom 40% of the population) providing ₹5,00,000 per family per year for secondary and tertiary care hospitalization across all empanelled hospitals.",
+                        "Eligibility Criteria": "Families identified via SECC 2011 deprivation criteria in rural areas and occupational criteria in urban areas, and NFSA ration card holders. No family size, age, or gender limits.",
+                        "Exclusions": "Families covered under statutory corporate health insurance schemes or income tax payees not on SECC deprivation list.",
+                        "Benefits": "₹5,00,000 per family per year cashless hospitalization coverage at empanelled public and private hospitals nationwide. Includes pre- and post-hospitalization costs and all pre-existing conditions from Day 1.",
+                        "Documents Required": "Aadhaar Card, Ration Card (NFSA / SECC linked), PMJAY Golden Card / ABHA Card, Active Mobile Number.",
+                        "Application Process": "Visit nearest CSC, empanelled hospital (Pradhan Mantri Arogya Mitra desk), or beneficiary.nha.gov.in portal to verify eligibility and generate Ayushman Card.",
+                        "Official Portal": "https://beneficiary.nha.gov.in/",
+                        "Tags / Categories": "Health, Medical, Hospitalization, Insurance, Healthcare"
+                    }
+                    self._schemes.append(ayushman_scheme)
+                    self._schemes_by_slug["ayushman-bharat-pmjay"] = ayushman_scheme
+                    self._schemes_by_slug["pmjay"] = ayushman_scheme
+                    self._schemes_by_slug["ayushman-card"] = ayushman_scheme
 
 
                 logger.info(f"Loaded {len(self._schemes)} authentic schemes from myScheme master.")
@@ -119,50 +159,76 @@ class SchemeCatalogService:
                            for k in ["artisan", "vishwakarma", "svanidhi", "vendor", "craft", "worker", "shramik", "labor", "skill"])
                 ]
 
-        # Multi-token text search with alias recognition
+        # Multi-token text search with alias recognition and relevance ranking
         if q and q.strip():
             raw_q = q.lower().strip()
-            # Normalize query (remove hyphens, punctuation for token matching)
             clean_q = re.sub(r'[^a-z0-9\s]', ' ', raw_q)
             tokens = [t for t in clean_q.split() if len(t) >= 2]
 
-            # Common alias expansions
-            expanded_terms = set(tokens)
-            if "kisan" in raw_q or "pmkisan" in clean_q or "pm kisan" in clean_q:
-                expanded_terms.update(["pm-kisan", "kisan", "samman", "nidhi"])
-            if "atal" in raw_q or "apy" in raw_q:
-                expanded_terms.update(["apy", "atal", "pension"])
-            if "ayushman" in raw_q or "pmjay" in raw_q:
-                expanded_terms.update(["pmjay", "ayushman", "arogya"])
-            if "awas" in raw_q or "pmay" in raw_q:
-                expanded_terms.update(["pmay", "awas"])
-            if "vishwakarma" in raw_q:
-                expanded_terms.update(["vishwakarma", "artisan"])
-
-            matched_schemes = []
+            scored_schemes = []
             for s in filtered:
                 slug = s.get("_clean_slug", "").lower()
                 name = s.get("Scheme Name", "").lower()
+                clean_name = re.sub(r'[^a-z0-9\s]', ' ', name)
+                name_words = set(clean_name.split())
                 tags = s.get("Tags / Categories", "").lower()
                 desc = s.get("Description", "").lower()
                 ministry = s.get("State / UT / Ministry", "").lower()
                 blob = f"{slug} {name} {tags} {desc} {ministry}"
 
-                # 1. Exact phrase in blob or exact slug match
-                if raw_q in blob or raw_q in slug:
-                    matched_schemes.append(s)
-                    continue
+                score = 0
 
-                # 2. Check if all primary tokens match blob
-                if tokens and all(t in blob for t in tokens):
-                    matched_schemes.append(s)
-                    continue
+                # 1. Exact slug match or clean slug match
+                if raw_q == slug or raw_q.replace("-", "") == slug.replace("-", ""):
+                    score += 200
+                elif slug.startswith(raw_q):
+                    score += 90
 
-                # 3. Check expanded alias matches
-                if any(term in slug or term in name for term in expanded_terms if len(term) >= 3):
-                    matched_schemes.append(s)
+                # 2. Exact phrase match in scheme name
+                if raw_q in name:
+                    score += 150
+                    if name.startswith(raw_q):
+                        score += 50
 
-            filtered = matched_schemes
+                # 3. All tokens in scheme name
+                if tokens and all(t in name_words or any(w.startswith(t) for w in name_words) for t in tokens):
+                    score += 100
+                elif tokens and all(t in blob for t in tokens):
+                    score += 40
+
+                # 4. Partial token matches in name
+                for t in tokens:
+                    if t in name_words:
+                        score += 25
+                    elif t in blob:
+                        score += 5
+
+                # 5. Targeted alias recognition
+                if "kcc" in tokens or "kisan credit" in raw_q:
+                    if slug == "kcc" or "kisan credit card" in name:
+                        score += 180
+                elif ("pmkisan" in clean_q or "pm kisan" in clean_q or "kisan samman" in clean_q) and slug == "pm-kisan":
+                    score += 180
+                elif ("mudra" in clean_q or "pmmy" in clean_q) and (slug == "pmmy" or "mudra yojana" in name):
+                    score += 180
+                elif ("sukanya" in clean_q or "ssy" in clean_q) and (slug == "ssy" or "sukanya samriddhi" in name):
+                    score += 180
+                elif ("atal pension" in clean_q or "apy" in clean_q) and (slug == "apy" or "atal pension" in name):
+                    score += 180
+                elif ("ayushman" in clean_q or "pmjay" in clean_q) and (slug == "ayushman-bharat-pmjay" or "pradhan mantri jan arogya" in name):
+                    score += 180
+                elif ("surya ghar" in clean_q or "muft bijli" in clean_q) and slug == "pm-surya-ghar-muft-bijli":
+                    score += 180
+                elif ("svanidhi" in clean_q or "street vendor" in clean_q) and slug == "pm-svanidhi":
+                    score += 180
+                elif "vishwakarma" in clean_q and slug == "pm-vishwakarma":
+                    score += 180
+
+                if score > 0:
+                    scored_schemes.append((s, score))
+
+            scored_schemes.sort(key=lambda x: x[1], reverse=True)
+            filtered = [item[0] for item in scored_schemes]
 
         # State filter
         if state:

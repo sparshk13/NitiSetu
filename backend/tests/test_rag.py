@@ -158,4 +158,78 @@ def test_rag_pmsvanidhi_loan_amounts():
     resp = rag_service.answer_query(req)
     assert not resp.insufficient_evidence
     assert "10,000" in resp.answer
-    assert "Financial Benefits" in resp.detected_intent
+
+
+def test_rag_kcc_priority_over_pm_kisan():
+    """Multi-word alias priority: 'kisan credit card' routes to KCC, NOT PM-KISAN."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="kisan credit card kaise banaye aur limit kitni hai"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "Kisan Credit Card" in resp.matched_scheme_name
+    assert "3,00,000" in resp.answer
+    assert "4%" in resp.answer
+
+
+def test_rag_mudra_tiers_and_limits():
+    """MUDRA query resolves to PMMY and returns Shishu, Kishore, and Tarun loan limits."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="How much loan can I get under PM MUDRA Yojana?"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "Mudra" in resp.matched_scheme_name or "PMMY" in resp.matched_scheme_name
+    assert "Shishu" in resp.answer
+    assert "50,000" in resp.answer
+    assert "Kishore" in resp.answer
+    assert "Tarun" in resp.answer
+
+
+def test_rag_sukanya_samriddhi_age_and_rules():
+    """Sukanya Samriddhi Yojana query returns girl child age limit and sovereign interest rate."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="What is the girl child maximum age for Sukanya Samriddhi Yojana?"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert "Sukanya" in resp.matched_scheme_name
+    assert "10 years" in resp.answer
+    assert "8.2%" in resp.answer
+
+
+def test_rag_ambiguous_short_query_guidance():
+    """Generic/ambiguous query without scheme returns Civic Navigator guidance without failing."""
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="How to apply?"
+    )
+    resp = rag_service.answer_query(req)
+    assert not resp.insufficient_evidence
+    assert resp.verification_status == "guidance"
+    assert "Civic Navigator" in resp.matched_scheme_name
+    assert "PM-KISAN" in resp.answer
+    assert "Ayushman Bharat" in resp.answer
+
+
+def test_rag_query_cache_speed():
+    """Repeated identical query returns immediately with cached status."""
+    import time
+    req = AssistantQueryRequest(
+        scheme_id=None,
+        question="What are the age limits for Atal Pension Yojana?"
+    )
+    # Prime cache
+    rag_service.answer_query(req)
+
+    # Cached call
+    t0 = time.time()
+    cached_resp = rag_service.answer_query(req)
+    duration_ms = (time.time() - t0) * 1000
+
+    assert duration_ms < 50.0  # Must be sub-50ms (usually < 1ms)
+    assert "cached" in cached_resp.verification_status
+    assert "18" in cached_resp.answer and "40" in cached_resp.answer

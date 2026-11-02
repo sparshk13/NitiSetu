@@ -235,8 +235,19 @@ const renderFormattedBody = (body: string): React.ReactNode => {
 
   lines.forEach((line, index) => {
     const trimmed = line.trim();
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
     if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
       currentList.push(trimmed.slice(2).trim());
+    } else if (numMatch) {
+      flushList(index);
+      elements.push(
+        <div key={`num-${index}`} className="flex items-start gap-2.5 my-1.5 pl-1 text-xs sm:text-sm text-slate-700">
+          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+            {numMatch[1]}
+          </span>
+          <span className="leading-relaxed">{renderFormattedInline(numMatch[2])}</span>
+        </div>
+      );
     } else {
       flushList(index);
       if (trimmed) {
