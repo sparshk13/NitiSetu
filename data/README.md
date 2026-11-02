@@ -10,31 +10,17 @@ This directory contains **100% authentic, verified datasets** sourced directly f
 
 ```
 data/
-├── README.md                                  # This documentation & developer reference
-├── schemes/
-│   ├── myscheme_central_state_schemes.csv     # Master CSV (15.8 MB, 2,066 schemes, 16 attributes)
-│   ├── myscheme_central_state_schemes.json    # Master JSON (16.8 MB, complete scheme objects)
-│   ├── urbanmorph_schemes_master_registry.json# Reconciled Register (1.96 MB, 11,000+ schemes)
-│   ├── scheme_sectors_classification.json     # Taxonomies & Ministry classification (2.2 MB)
-│   └── by_category/                           # Category-filtered subsets for fast querying
-│       ├── agriculture_and_farmers.json       # 390 schemes (PM-KISAN, PMFBY, KCC, etc.)
-│       ├── education_and_scholarships.json    # 852 schemes (NSP, Post-Matric, fellowships)
-│       ├── healthcare_and_wellness.json       # 643 schemes (Ayushman Bharat, Jan Aushadhi)
-│       ├── housing_and_urban_rural.json       # 409 schemes (PMAY-G, PMAY-U, etc.)
-│       ├── women_and_child_development.json   # 810 schemes (Sukanya Samriddhi, PMMVY, etc.)
-│       ├── social_justice_and_pensions.json   # 711 schemes (NSAP, Disability & Widow pensions)
-│       ├── business_msme_and_loans.json       # 647 schemes (PM Mudra, Vishwakarma, SVANidhi)
-│       └── skills_and_employment.json         # 885 schemes (PMKVY, Rozgar Mela, Apprentice)
+├── README.md                                  # Data architecture & developer reference
+├── schemes/                                   # Authentic government schemes catalog
+│   └── myscheme_central_state_schemes.json    # Master JSON (16.8 MB, 2,066 complete scheme objects)
 │
-├── eligibility_rules/
-│   ├── citizen_profile_schema.json            # JSON Schema for citizen profiling (Age, Income, Caste, etc.)
+├── rules/                                     # Deterministic eligibility evaluation rules
 │   └── eligibility_rule_engine.json           # Matching rules, income caps & exclusions for flagship schemes
 │
-├── document_requirements/
-│   ├── master_documents_catalog.json          # Complete registry of 15+ official citizen documents (UIDAI, RoR, etc.)
+├── documents/                                 # Required document matrices
 │   └── scheme_document_matrix.json            # Fast lookup mapping: scheme slug -> required document tags
 │
-├── application_forms_and_workflows/           # Step-by-step form schemas & UI walkthroughs
+├── workflows/                                 # Step-by-step portal application workflows
 │   ├── pm_kisan_workflow.json                 # PM-KISAN online & CSC registration workflow
 │   ├── ayushman_bharat_pmjay_workflow.json    # ABHA creation & Ayushman Golden Card workflow
 │   ├── national_scholarship_portal_workflow.json # NSP One Time Registration (OTR) & scholarship forms
@@ -43,9 +29,10 @@ data/
 │   ├── pm_svanidhi_workflow.json              # Street vendors 3-tier micro-credit & QR cashback flow
 │   └── pm_surya_ghar_workflow.json            # Rooftop solar installation & DISCOM subsidy claim
 │
-└── official_policy_guidelines/                # Gazette operational guidelines issued by ministries
+└── guidelines/                                # Official Government Gazette & Policy guidelines (Markdown / PDF)
     ├── pm_kisan_operational_guidelines.md     # Ministry of Agriculture & Farmers Welfare
     ├── ayushman_bharat_pmjay_guidelines.md    # National Health Authority (NHA)
+    ├── national_scholarship_portal_guidelines.md # Ministry of Education & Ministry of Social Justice
     ├── pm_vishwakarma_guidelines.md           # Ministry of Micro, Small and Medium Enterprises
     ├── pm_surya_ghar_guidelines.md            # Ministry of New and Renewable Energy
     ├── pmay_housing_guidelines.md             # MoHUA & Ministry of Rural Development

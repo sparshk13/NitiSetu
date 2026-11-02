@@ -59,7 +59,12 @@
 │   ├── package.json        # Frontend scripts and dependencies
 │   └── vercel.json         # Vercel SPA routing configuration
 │
-├── data/                   # Verified scheme catalogs and official gazette guidelines
+├── data/
+│   ├── schemes/            # Authentic 2,066 scheme catalog (myScheme.gov.in)
+│   ├── rules/              # Deterministic statutory eligibility rules
+│   ├── documents/          # Scheme document requirements matrix
+│   ├── guidelines/         # Official ministry guidelines & gazette notifications
+│   └── workflows/          # Step-by-step portal application schemas
 ├── scripts/                # Dataset generation & repository maintenance tools
 ├── Dockerfile              # Production backend Docker image
 ├── docker-compose.yml      # Multi-container local orchestration

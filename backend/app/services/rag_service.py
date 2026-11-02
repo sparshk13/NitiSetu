@@ -26,8 +26,8 @@ from backend.app.services.rag import (
 logger = logging.getLogger("nitisetu.rag")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-GUIDELINES_DIR = BASE_DIR / "data" / "official_policy_guidelines"
-WORKFLOWS_DIR = BASE_DIR / "data" / "application_forms_and_workflows"
+GUIDELINES_DIR = BASE_DIR / "data" / "guidelines"
+WORKFLOWS_DIR = BASE_DIR / "data" / "workflows"
 
 STOP_WORDS: Set[str] = {
     "what", "when", "where", "which", "who", "whom", "this", "that", "there",

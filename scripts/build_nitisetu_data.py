@@ -5,11 +5,11 @@ from collections import defaultdict
 
 def ensure_dirs():
     dirs = [
-        'data/schemes/by_category',
-        'data/eligibility_rules',
-        'data/document_requirements',
-        'data/application_forms_and_workflows',
-        'data/official_policy_guidelines',
+        'data/schemes',
+        'data/rules',
+        'data/documents',
+        'data/workflows',
+        'data/guidelines',
     ]
     for d in dirs:
         os.makedirs(d, exist_ok=True)
@@ -98,7 +98,7 @@ def build_category_datasets():
         print(f"  Saved {cat_file} ({len(items)} schemes)")
 
     # Save scheme-document matrix
-    matrix_file = 'data/document_requirements/scheme_document_matrix.json'
+    matrix_file = 'data/documents/scheme_document_matrix.json'
     with open(matrix_file, 'w', encoding='utf-8') as f:
         json.dump(scheme_docs_matrix, f, indent=2, ensure_ascii=False)
     print(f"Saved {matrix_file} ({len(scheme_docs_matrix)} schemes indexed)")
@@ -384,9 +384,9 @@ def build_eligibility_rules_engine():
             }
         ]
     }
-    with open('data/eligibility_rules/eligibility_rule_engine.json', 'w', encoding='utf-8') as f:
+    with open('data/rules/eligibility_rule_engine.json', 'w', encoding='utf-8') as f:
         json.dump(rules_engine, f, indent=2, ensure_ascii=False)
-    print("Saved data/eligibility_rules/eligibility_rule_engine.json")
+    print("Saved data/rules/eligibility_rule_engine.json")
 
 def build_application_workflows():
     print("Building detailed government application workflows and form schemas...")
@@ -599,7 +599,7 @@ def build_application_workflows():
     }
 
     for wf_name, wf_data in workflows.items():
-        wf_file = f"data/application_forms_and_workflows/{wf_name}.json"
+        wf_file = f"data/workflows/{wf_name}.json"
         with open(wf_file, 'w', encoding='utf-8') as f:
             json.dump(wf_data, f, indent=2, ensure_ascii=False)
         print(f"Saved {wf_file}")
@@ -702,7 +702,7 @@ To provide end-to-end holistic support to traditional artisans and craftspeople 
     }
 
     for fname, content in guidelines.items():
-        fpath = f"data/official_policy_guidelines/{fname}"
+        fpath = f"data/guidelines/{fname}"
         with open(fpath, 'w', encoding='utf-8') as f:
             f.write(content.strip() + '\n')
         print(f"Saved {fpath}")

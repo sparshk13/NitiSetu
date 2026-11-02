@@ -10,7 +10,7 @@ logger = logging.getLogger("nitisetu.schemes")
 # Resolve project data path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 SCHEMES_FILE = BASE_DIR / "data" / "schemes" / "myscheme_central_state_schemes.json"
-DOC_MATRIX_FILE = BASE_DIR / "data" / "document_requirements" / "scheme_document_matrix.json"
+DOC_MATRIX_FILE = BASE_DIR / "data" / "documents" / "scheme_document_matrix.json"
 
 
 class SchemeCatalogService:
