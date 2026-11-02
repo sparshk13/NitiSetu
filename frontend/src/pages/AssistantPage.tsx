@@ -368,13 +368,13 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({ initialSchemeSlug,
       };
 
       setMessages(prev => [...prev, assistantMsg]);
-    } catch (err) {
+    } catch (err: any) {
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender: 'assistant',
-          text: '### Direct Answer\nAn error occurred while connecting to the assistant. Please try again or check your network query.',
+          text: `### Direct Answer\n${err?.message || 'An error occurred while connecting to the assistant. Please try again or check your query.'}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -581,28 +581,41 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({ initialSchemeSlug,
           e.preventDefault();
           handleSend();
         }}
-        className="flex items-center gap-2"
+        className="space-y-1.5"
       >
-        <input
-          type="text"
-          placeholder={
-            selectedSchemeSlug !== 'all' && activeScheme
-              ? `Ask any question regarding ${activeScheme.name}...`
-              : "Ask any question about government schemes, eligibility, documents, or deadlines..."
-          }
-          value={inputQuery}
-          onChange={(e) => setInputQuery(e.target.value)}
-          disabled={loading}
-          className="flex-1 px-4 py-3 text-xs sm:text-sm rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-xs transition-all"
-        />
-        <button
-          type="submit"
-          disabled={loading || !inputQuery.trim()}
-          className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
-        >
-          <Send className="w-4 h-4" />
-          <span>Send</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            maxLength={500}
+            placeholder={
+              selectedSchemeSlug !== 'all' && activeScheme
+                ? `Ask any question regarding ${activeScheme.name}...`
+                : "Ask any question about government schemes, eligibility, documents, or deadlines..."
+            }
+            value={inputQuery}
+            onChange={(e) => setInputQuery(e.target.value)}
+            disabled={loading}
+            className="flex-1 px-4 py-3 text-xs sm:text-sm rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-xs transition-all"
+          />
+          <button
+            type="submit"
+            disabled={loading || !inputQuery.trim()}
+            className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+          >
+            <Send className="w-4 h-4" />
+            <span>Send</span>
+          </button>
+        </div>
+
+        {inputQuery.length > 0 && (
+          <div className="flex justify-end px-1">
+            <span className={`text-[10px] font-mono ${
+              inputQuery.length >= 480 ? 'text-rose-600 font-bold' : inputQuery.length >= 400 ? 'text-amber-600' : 'text-slate-400'
+            }`}>
+              {inputQuery.length} / 500 characters
+            </span>
+          </div>
+        )}
       </form>
 
       <div className="text-center text-[11px] text-slate-400 font-mono">

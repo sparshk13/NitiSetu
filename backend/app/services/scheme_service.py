@@ -1,3 +1,4 @@
+import re
 import json
 import logging
 from pathlib import Path
@@ -67,29 +68,101 @@ class SchemeCatalogService:
         page: int = 1,
         page_size: int = 10
     ) -> SchemeListResponse:
-        """Search and filter government schemes with pagination."""
+        """Search and filter government schemes with multi-token matching and pagination."""
         filtered = self._schemes
 
-        # By default prioritize scholarships/education if scheme_type is 'scholarship'
-        if scheme_type == "scholarship":
-            filtered = [
-                s for s in filtered
-                if "scholarship" in s.get("Scheme Name", "").lower()
-                or "scholarship" in s.get("Tags / Categories", "").lower()
-                or "student" in s.get("Eligibility Criteria", "").lower()
-                or "education" in s.get("Tags / Categories", "").lower()
-            ]
+        # Scheme Type / Sector Filter
+        if scheme_type and scheme_type.strip():
+            st = scheme_type.lower().strip()
+            if st == "scholarship":
+                filtered = [
+                    s for s in filtered
+                    if "scholarship" in s.get("Scheme Name", "").lower()
+                    or "scholarship" in s.get("Tags / Categories", "").lower()
+                    or "student" in s.get("Eligibility Criteria", "").lower()
+                    or "education" in s.get("Tags / Categories", "").lower()
+                ]
+            elif st in ("farmer", "agriculture"):
+                filtered = [
+                    s for s in filtered
+                    if any(k in f"{s.get('Scheme Name','')} {s.get('Tags / Categories','')} {s.get('Description','')}".lower() 
+                           for k in ["farmer", "kisan", "krishi", "agriculture", "crop", "cultivat", "soil", "pm-kisan"])
+                ]
+            elif st in ("health", "wellness"):
+                filtered = [
+                    s for s in filtered
+                    if any(k in f"{s.get('Scheme Name','')} {s.get('Tags / Categories','')} {s.get('Description','')}".lower() 
+                           for k in ["health", "hospital", "ayushman", "swasthya", "medical", "insurance", "treatment"])
+                ]
+            elif st in ("pension", "senior"):
+                filtered = [
+                    s for s in filtered
+                    if any(k in f"{s.get('Scheme Name','')} {s.get('Tags / Categories','')} {s.get('Description','')}".lower() 
+                           for k in ["pension", "old age", "vridha", "senior", "social security", "divyang pension", "atal pension"])
+                ]
+            elif st in ("housing", "shelter"):
+                filtered = [
+                    s for s in filtered
+                    if any(k in f"{s.get('Scheme Name','')} {s.get('Tags / Categories','')} {s.get('Description','')}".lower() 
+                           for k in ["awas", "housing", "pucca", "shelter", "ghar", "residential"])
+                ]
+            elif st in ("business", "msme", "loan"):
+                filtered = [
+                    s for s in filtered
+                    if any(k in f"{s.get('Scheme Name','')} {s.get('Tags / Categories','')} {s.get('Description','')}".lower() 
+                           for k in ["business", "msme", "mudra", "subsidy", "credit", "entrepreneur", "loan", "startup"])
+                ]
+            elif st in ("worker", "artisan", "labor"):
+                filtered = [
+                    s for s in filtered
+                    if any(k in f"{s.get('Scheme Name','')} {s.get('Tags / Categories','')} {s.get('Description','')}".lower() 
+                           for k in ["artisan", "vishwakarma", "svanidhi", "vendor", "craft", "worker", "shramik", "labor", "skill"])
+                ]
 
-        # Text search (query across name, tags, description, ministry)
-        if q:
-            query_lower = q.lower().strip()
-            filtered = [
-                s for s in filtered
-                if query_lower in s.get("Scheme Name", "").lower()
-                or query_lower in s.get("Tags / Categories", "").lower()
-                or query_lower in s.get("Description", "").lower()
-                or query_lower in s.get("State / UT / Ministry", "").lower()
-            ]
+        # Multi-token text search with alias recognition
+        if q and q.strip():
+            raw_q = q.lower().strip()
+            # Normalize query (remove hyphens, punctuation for token matching)
+            clean_q = re.sub(r'[^a-z0-9\s]', ' ', raw_q)
+            tokens = [t for t in clean_q.split() if len(t) >= 2]
+
+            # Common alias expansions
+            expanded_terms = set(tokens)
+            if "kisan" in raw_q or "pmkisan" in clean_q or "pm kisan" in clean_q:
+                expanded_terms.update(["pm-kisan", "kisan", "samman", "nidhi"])
+            if "atal" in raw_q or "apy" in raw_q:
+                expanded_terms.update(["apy", "atal", "pension"])
+            if "ayushman" in raw_q or "pmjay" in raw_q:
+                expanded_terms.update(["pmjay", "ayushman", "arogya"])
+            if "awas" in raw_q or "pmay" in raw_q:
+                expanded_terms.update(["pmay", "awas"])
+            if "vishwakarma" in raw_q:
+                expanded_terms.update(["vishwakarma", "artisan"])
+
+            matched_schemes = []
+            for s in filtered:
+                slug = s.get("_clean_slug", "").lower()
+                name = s.get("Scheme Name", "").lower()
+                tags = s.get("Tags / Categories", "").lower()
+                desc = s.get("Description", "").lower()
+                ministry = s.get("State / UT / Ministry", "").lower()
+                blob = f"{slug} {name} {tags} {desc} {ministry}"
+
+                # 1. Exact phrase in blob or exact slug match
+                if raw_q in blob or raw_q in slug:
+                    matched_schemes.append(s)
+                    continue
+
+                # 2. Check if all primary tokens match blob
+                if tokens and all(t in blob for t in tokens):
+                    matched_schemes.append(s)
+                    continue
+
+                # 3. Check expanded alias matches
+                if any(term in slug or term in name for term in expanded_terms if len(term) >= 3):
+                    matched_schemes.append(s)
+
+            filtered = matched_schemes
 
         # State filter
         if state:

@@ -10,6 +10,16 @@ _GLOBAL_PROFILE_STORE: Dict[str, Dict] = {}
 DEFAULT_DEMO_USER_ID = "00000000-0000-0000-0000-000000000001"
 
 
+import re
+import html
+
+def _sanitize_string(val: Optional[str]) -> Optional[str]:
+    if not val or not isinstance(val, str):
+        return val
+    # Remove HTML tags and strip whitespace
+    cleaned = re.sub(r'<[^>]*?>', '', val).strip()
+    return html.escape(cleaned)
+
 class ProfileService:
     def __init__(self):
         # Demo persona
@@ -93,10 +103,13 @@ class ProfileService:
         return ProfileResponse(**data, completeness_percentage=completeness)
 
     def update_profile(self, profile_update: ProfileUpdate, user_id: Optional[str] = None) -> ProfileResponse:
-        """Update profile for a specific user."""
+        """Update profile for a specific user with data sanitization."""
         target_id = user_id or DEFAULT_DEMO_USER_ID
         current = _GLOBAL_PROFILE_STORE.get(target_id, {"id": target_id})
         update_dict = profile_update.model_dump(exclude_unset=True)
+        for k, v in update_dict.items():
+            if isinstance(v, str):
+                update_dict[k] = _sanitize_string(v)
         current.update(update_dict)
         _GLOBAL_PROFILE_STORE[target_id] = current
 

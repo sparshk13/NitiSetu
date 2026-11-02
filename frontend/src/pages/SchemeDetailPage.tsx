@@ -162,7 +162,9 @@ export const SchemeDetailPage: React.FC<SchemeDetailProps> = ({ slug, onBack, on
                 ? 'bg-emerald-50/70 border-emerald-200' 
                 : eligibility.status === 'not_eligible'
                 ? 'bg-rose-50/70 border-rose-200'
-                : 'bg-amber-50/70 border-amber-200'
+                : eligibility.status === 'needs_information'
+                ? 'bg-amber-50/70 border-amber-200'
+                : 'bg-slate-50 border-slate-200'
             }`}>
               <div className="flex items-center gap-2 mb-2">
                 {eligibility.status === 'potentially_eligible' && (
@@ -174,10 +176,14 @@ export const SchemeDetailPage: React.FC<SchemeDetailProps> = ({ slug, onBack, on
                 {eligibility.status === 'needs_information' && (
                   <AlertCircle className="w-5 h-5 text-amber-600" />
                 )}
+                {eligibility.status === 'not_assessed' && (
+                  <HelpCircle className="w-5 h-5 text-blue-600" />
+                )}
                 <span className="font-bold text-sm uppercase tracking-wide">
                   {eligibility.status === 'potentially_eligible' && 'Potentially Eligible'}
                   {eligibility.status === 'not_eligible' && 'Not Currently Eligible'}
                   {eligibility.status === 'needs_information' && 'Additional Information Required'}
+                  {eligibility.status === 'not_assessed' && 'General Criteria / Manual Review Required'}
                 </span>
               </div>
 

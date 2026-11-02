@@ -11,7 +11,8 @@ import {
   Briefcase,
   Tractor,
   Home,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { api, ProfileData } from '../api/client';
 
@@ -315,6 +316,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onProfileUpdated }) =>
 
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -332,14 +334,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onProfileUpdated }) =>
     e.preventDefault();
     setSaving(true);
     setSaveSuccess(false);
+    setSaveError(null);
     try {
       const updated = await api.updateProfile(profile);
       setProfile(updated);
       setSaveSuccess(true);
       if (onProfileUpdated) onProfileUpdated(updated);
       setTimeout(() => setSaveSuccess(false), 4000);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setSaveError(err.message || 'Failed to update profile. Please verify that all input fields are valid.');
     } finally {
       setSaving(false);
     }
@@ -386,6 +389,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onProfileUpdated }) =>
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
           <div>
             <span className="font-semibold">Profile updated successfully!</span> Your scheme eligibility ratings and recommended benefits have been recalibrated across all sectors.
+          </div>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center gap-2 text-sm shadow-xs animate-in fade-in duration-300">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <div>
+            <span className="font-semibold">Profile update failed:</span> {saveError}
           </div>
         </div>
       )}

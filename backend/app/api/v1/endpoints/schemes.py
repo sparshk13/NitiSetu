@@ -13,16 +13,15 @@ router = APIRouter(prefix="/schemes", tags=["Schemes"])
 
 @router.get("", response_model=SchemeListResponse)
 async def list_schemes(
-    q: Optional[str] = Query(None, description="Search keyword across name, description, and ministry"),
+    q: Optional[str] = Query(None, description="Search keyword across name, description, tags, and ministry"),
     state: Optional[str] = Query(None, description="Filter by state or UT"),
     level: Optional[str] = Query(None, description="Central Government or State Government"),
-    scheme_type: Optional[str] = Query("scholarship", description="Scheme type filter (default: scholarship)"),
+    scheme_type: Optional[str] = Query(None, description="Scheme type filter (default: None for all welfare sectors)"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(10, ge=1, le=100, description="Items per page")
+    page_size: int = Query(12, ge=1, le=100, description="Items per page")
 ):
     """
-    Search and filter authentic government schemes from the 2,066 master repository.
-    Default filters prioritize student scholarships.
+    Search and filter authentic government schemes from the 2,066 master repository across all welfare sectors.
     """
     return scheme_service.list_schemes(
         q=q,

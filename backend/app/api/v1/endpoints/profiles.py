@@ -11,8 +11,13 @@ router = APIRouter(prefix="/profiles", tags=["Profile"])
 async def get_my_profile(citizen_id: Optional[str] = Depends(get_current_citizen_id)):
     """
     Retrieve the current authenticated user's profile.
-    If a new user registered, returns their actual registered profile, not seeded demo data.
+    Requires authentication; returns the citizen's authentic profile.
     """
+    if not citizen_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials required. Please sign in."
+        )
     return profile_service.get_profile(citizen_id)
 
 
@@ -22,4 +27,9 @@ async def update_my_profile(
     citizen_id: Optional[str] = Depends(get_current_citizen_id)
 ):
     """Create or update current authenticated user's profile."""
+    if not citizen_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials required. Please sign in."
+        )
     return profile_service.update_profile(profile_in, citizen_id)

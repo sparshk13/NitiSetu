@@ -2,6 +2,7 @@ import uuid
 import hashlib
 import logging
 from typing import Dict, Optional
+from fastapi import HTTPException, status
 from backend.app.schemas.auth import CitizenRegisterRequest, CitizenLoginRequest, AuthTokenResponse
 from backend.app.services.profile_service import profile_service, _GLOBAL_PROFILE_STORE, DEFAULT_DEMO_USER_ID
 
@@ -46,6 +47,11 @@ class AuthService:
             stored = _CITIZENS_DB[clean_identifier]
             if stored["password_hash"] == hash_pw(req.password):
                 return self._make_token(stored)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="An account with this email/mobile already exists with a different password. Please sign in."
+                )
 
         user_id = str(uuid.uuid4())
         user_record = {
@@ -85,13 +91,6 @@ class AuthService:
 
         stored = _CITIZENS_DB.get(clean_identifier)
         if not stored:
-            # Allow automatic smooth guest login if standard password supplied
-            if len(req.password) >= 4:
-                return self.register(CitizenRegisterRequest(
-                    full_name=req.email_or_mobile.split('@')[0].capitalize(),
-                    email_or_mobile=req.email_or_mobile,
-                    password=req.password
-                ))
             return None
 
         if stored["password_hash"] != hash_pw(req.password):

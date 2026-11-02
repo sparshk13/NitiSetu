@@ -7,6 +7,7 @@ import {
   Bot, 
   CheckCircle2, 
   ChevronRight, 
+  ChevronLeft,
   ShieldCheck, 
   RotateCcw,
   Tractor,
@@ -40,18 +41,21 @@ const SCHEME_CATEGORIES = [
 
 interface SchemeDiscoveryProps {
   onNavigate: (tab: string, schemeSlug?: string) => void;
+  initialCategory?: string;
 }
 
-export const SchemeDiscoveryPage: React.FC<SchemeDiscoveryProps> = ({ onNavigate }) => {
+export const SchemeDiscoveryPage: React.FC<SchemeDiscoveryProps> = ({ onNavigate, initialCategory }) => {
   const [schemes, setSchemes] = useState<SchemeItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || '');
   const [selectedLevel, setSelectedLevel] = useState('');
   const [selectedState, setSelectedState] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 24;
 
-  const fetchSchemes = async () => {
+  const fetchSchemes = async (pageToFetch = currentPage) => {
     setLoading(true);
     // Combine search query and category keyword if selected
     const activeQuery = [searchQuery, selectedCategory].filter(Boolean).join(' ');
@@ -59,7 +63,8 @@ export const SchemeDiscoveryPage: React.FC<SchemeDiscoveryProps> = ({ onNavigate
       q: activeQuery || undefined,
       level: selectedLevel || undefined,
       state: selectedState || undefined,
-      page_size: 24
+      page: pageToFetch,
+      page_size: pageSize
     });
     setSchemes(data.items);
     setTotal(data.total);
@@ -67,11 +72,30 @@ export const SchemeDiscoveryPage: React.FC<SchemeDiscoveryProps> = ({ onNavigate
   };
 
   useEffect(() => {
+    if (initialCategory !== undefined) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [initialCategory]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedLevel, selectedState]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
-      fetchSchemes();
+      fetchSchemes(currentPage);
     }, 200);
     return () => clearTimeout(timer);
-  }, [searchQuery, selectedCategory, selectedLevel, selectedState]);
+  }, [searchQuery, selectedCategory, selectedLevel, selectedState, currentPage]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 200, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -243,6 +267,37 @@ export const SchemeDiscoveryPage: React.FC<SchemeDiscoveryProps> = ({ onNavigate
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {total > pageSize && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs text-slate-600">
+            Showing <strong className="text-slate-900">{Math.min((currentPage - 1) * pageSize + 1, total)}</strong> to <strong className="text-slate-900">{Math.min(currentPage * pageSize, total)}</strong> of <strong className="text-slate-900">{total}</strong> schemes
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1 || loading}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Previous
+            </button>
+
+            <div className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg">
+              Page {currentPage} of {totalPages}
+            </div>
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages || loading}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
+            >
+              Next <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
     </div>

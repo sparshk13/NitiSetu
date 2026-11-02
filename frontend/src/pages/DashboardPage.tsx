@@ -20,7 +20,7 @@ import {
 import { api, ProfileData, SchemeItem, UserDocument } from '../api/client';
 
 interface DashboardProps {
-  onNavigate: (tab: string, schemeSlug?: string) => void;
+  onNavigate: (tab: string, schemeSlug?: string, categoryQuery?: string) => void;
   profile?: ProfileData;
 }
 
@@ -33,13 +33,19 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [profData, schemesData, docsData] = await Promise.all([
-        initialProfile ? Promise.resolve(initialProfile) : api.getProfile(),
-        api.listSchemes({ level: 'Central Government', page_size: 6 }),
+      const profData = initialProfile ? initialProfile : await api.getProfile();
+      setProfile(profData);
+
+      const [recData, docsData] = await Promise.all([
+        api.getRecommendations({
+          state_code: profData.state_code,
+          occupation: profData.occupation,
+          annual_family_income: profData.annual_family_income,
+          caste_category: profData.caste_category
+        }),
         api.listDocuments()
       ]);
-      setProfile(profData);
-      setSchemes(schemesData.items.slice(0, 3));
+      setSchemes(recData.slice(0, 3));
       setDocuments(docsData);
       setLoading(false);
     }
@@ -88,7 +94,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
       {/* Citizen Key Sectors Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         <div 
-          onClick={() => onNavigate('discovery')}
+          onClick={() => onNavigate('discovery', undefined, 'farmer')}
           className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
         >
           <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
@@ -99,7 +105,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
         </div>
 
         <div 
-          onClick={() => onNavigate('discovery')}
+          onClick={() => onNavigate('discovery', undefined, 'health')}
           className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
         >
           <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
@@ -110,7 +116,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
         </div>
 
         <div 
-          onClick={() => onNavigate('discovery')}
+          onClick={() => onNavigate('discovery', undefined, 'housing')}
           className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
         >
           <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
@@ -121,7 +127,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
         </div>
 
         <div 
-          onClick={() => onNavigate('discovery')}
+          onClick={() => onNavigate('discovery', undefined, 'business')}
           className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
         >
           <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
@@ -132,7 +138,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
         </div>
 
         <div 
-          onClick={() => onNavigate('discovery')}
+          onClick={() => onNavigate('discovery', undefined, 'pension')}
           className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
         >
           <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
@@ -143,7 +149,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({ onNavigate, profile: i
         </div>
 
         <div 
-          onClick={() => onNavigate('discovery')}
+          onClick={() => onNavigate('discovery', undefined, 'scholarship')}
           className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer text-center group"
         >
           <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 mx-auto flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">

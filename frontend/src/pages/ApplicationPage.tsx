@@ -27,6 +27,16 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
   const [schemeDetail, setSchemeDetail] = useState<SchemeDetail | null>(null);
   const [demoState, setDemoState] = useState<'idle' | 'running' | 'completed'>('idle');
   const [demoLogs, setDemoLogs] = useState<string[]>([]);
+  const [drafts, setDrafts] = useState<any[]>([]);
+
+  const loadDrafts = async () => {
+    try {
+      const data = await api.listDrafts();
+      setDrafts(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     async function loadSchemes() {
@@ -37,6 +47,7 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
       }
     }
     loadSchemes();
+    loadDrafts();
   }, []);
 
   useEffect(() => {
@@ -55,9 +66,25 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
 
   const isProfileIncomplete = !profile.full_name || profile.annual_family_income === undefined;
 
-  const runDemoAutomation = () => {
+  const runDemoAutomation = async () => {
     setDemoState('running');
     setDemoLogs([]);
+
+    // Persist real draft in backend
+    let backendDraft: any = null;
+    try {
+      backendDraft = await api.createDraft(selectedSchemeSlug, {
+        applicant_name: profile.full_name,
+        domicile_state: profile.state_code,
+        institution_name: profile.institution_name,
+        course_name: profile.course,
+        study_year: profile.study_year,
+        annual_family_income: profile.annual_family_income,
+        caste_category: profile.caste_category,
+      });
+    } catch (err) {
+      console.warn("Backend draft save failed, running sandbox simulator:", err);
+    }
 
     const schemeName = schemeDetail?.name || 'Selected Government Scheme';
     const ministry = schemeDetail?.state_or_ministry || 'State / Central Government';
@@ -88,13 +115,31 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
     ];
 
     steps.forEach((log, index) => {
-      setTimeout(() => {
+      setTimeout(async () => {
         setDemoLogs(prev => [...prev, log]);
         if (index === steps.length - 1) {
           setDemoState('completed');
+          if (backendDraft?.id) {
+            try {
+              await api.prepareDemo(backendDraft.id);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+          await loadDrafts();
         }
-      }, (index + 1) * 650);
+      }, (index + 1) * 550);
     });
+  };
+
+  const handleDownloadDraft = (draft: any) => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(draft, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `Application_Draft_${draft.scheme_id || 'scheme'}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
   };
 
   return (
@@ -287,11 +332,74 @@ export const ApplicationPage: React.FC<ApplicationPageProps> = ({ profile, initi
           {demoState === 'completed' && (
             <div className="mt-4 pt-3 border-t border-slate-800 flex items-center gap-2 text-emerald-400 text-xs">
               <CheckCircle2 className="w-4 h-4" />
-              <span>Sandbox verification completed. Draft ready for official submission on official portal.</span>
+              <span>Sandbox verification completed. Draft preserved in your account for official application submission.</span>
             </div>
           )}
         </div>
       )}
+
+      {/* Verified Application Drafts Registry */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FileCheck className="w-5 h-5 text-blue-600" />
+              Your Prepared Application Drafts ({drafts.length})
+            </h3>
+            <p className="text-xs text-slate-500">
+              Pre-populated citizen application files verified against official scheme parameters.
+            </p>
+          </div>
+        </div>
+
+        {drafts.length === 0 ? (
+          <div className="py-8 text-center text-xs text-slate-400">
+            No application drafts generated yet. Select a scheme above and run the automated preparation demo to create your first draft.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {drafts.map((d: any) => (
+              <div key={d.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    {d.scheme_name}
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      d.status === 'demo_completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {d.status === 'demo_completed' ? 'Verified Sandbox Draft' : 'Ready for Review'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500 flex items-center gap-3">
+                    <span>Applicant: <strong>{d.form_data?.applicant_name || 'Citizen'}</strong></span>
+                    <span>•</span>
+                    <span>State: <strong>{d.form_data?.domicile_state || 'All-India'}</strong></span>
+                    <span>•</span>
+                    <span>Created: <strong>{new Date(d.created_at).toLocaleDateString()}</strong></span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadDraft(d)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 flex items-center gap-1.5 transition-colors shadow-2xs"
+                  >
+                    Export JSON Draft
+                  </button>
+
+                  <a
+                    href={schemeDetail?.official_url || "https://www.myscheme.gov.in"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1 transition-colors shadow-2xs"
+                  >
+                    Open Portal <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

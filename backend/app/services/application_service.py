@@ -59,12 +59,21 @@ class ApplicationService:
         return results
 
     def create_draft(self, draft_in: ApplicationDraftCreate, user_id: Optional[str] = None) -> ApplicationDraftResponse:
+        target_uid = user_id or "00000000-0000-0000-0000-000000000001"
+        
+        # Check if an existing draft already exists for this citizen and scheme
+        for existing in _DRAFTS_STORE.values():
+            if existing.get("user_id") == target_uid and existing.get("scheme_id") == draft_in.scheme_id:
+                if draft_in.form_data:
+                    existing["form_data"].update(draft_in.form_data)
+                    existing["updated_at"] = datetime.now(timezone.utc).isoformat()
+                return ApplicationDraftResponse(**existing)
+
         draft_id = str(uuid.uuid4())
         scheme = scheme_service.get_scheme_by_slug(draft_in.scheme_id)
         scheme_name = scheme.name if scheme else draft_in.scheme_id
 
         # Merge actual requesting citizen's profile facts
-        target_uid = user_id or "00000000-0000-0000-0000-000000000001"
         profile = profile_service.get_profile(target_uid).model_dump()
         form_data = {
             "applicant_name": profile.get("full_name"),
@@ -94,9 +103,13 @@ class ApplicationService:
         return ApplicationDraftResponse(**draft)
 
 
-    def prepare_demo(self, draft_id: str) -> Optional[ApplicationDraftResponse]:
+    def prepare_demo(self, draft_id: str, user_id: Optional[str] = None) -> Optional[ApplicationDraftResponse]:
         draft = _DRAFTS_STORE.get(draft_id)
         if not draft:
+            return None
+
+        # Ownership guardrail
+        if user_id and draft.get("user_id") != user_id and draft.get("user_id") != "00000000-0000-0000-0000-000000000001":
             return None
 
         # Execute safe demo simulation with strict guardrails

@@ -114,9 +114,16 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ profile, initialSc
   };
 
   const handleDelete = async (id: string) => {
-    await api.deleteDocument(id);
-    setDocuments(prev => prev.filter(d => d.id !== id));
-    if (viewingDoc?.id === id) setViewingDoc(null);
+    if (!window.confirm("Are you sure you want to remove this document from your verified vault?")) {
+      return;
+    }
+    try {
+      await api.deleteDocument(id);
+      setDocuments(prev => prev.filter(d => d.id !== id));
+      if (viewingDoc?.id === id) setViewingDoc(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to remove document");
+    }
   };
 
   // Check if a document matching a keyword is present in vault
@@ -638,7 +645,14 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ profile, initialSc
 
         {/* Checklist Items */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-          {universalChecklist.map((item, idx) => {
+          {((selectedSchemeSlug !== 'general' && activeSchemeDetail?.detected_document_tags && activeSchemeDetail.detected_document_tags.length > 0)
+            ? universalChecklist.filter(item => 
+                activeSchemeDetail.detected_document_tags.some(t => 
+                  item.keys.some(k => t.toLowerCase().includes(k) || k.includes(t.toLowerCase().replace(/_/g, ' ')))
+                )
+              )
+            : universalChecklist
+          ).map((item, idx) => {
             const isReady = hasDocMatching(item.keys);
             return (
               <div

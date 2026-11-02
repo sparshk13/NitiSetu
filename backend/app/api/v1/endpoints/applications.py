@@ -28,7 +28,11 @@ async def create_draft(
 
 
 @router.post("/drafts/{draft_id}/prepare-demo", response_model=ApplicationDraftResponse)
-async def prepare_demo(draft_id: str, request: DemoPrepareRequest):
+async def prepare_demo(
+    draft_id: str, 
+    request: DemoPrepareRequest,
+    citizen_id: Optional[str] = Depends(get_current_citizen_id)
+):
     """
     Demonstrate automated form filling against a controlled, isolated demo portal.
     Requires explicit citizen confirmation. Never submits live applications.
@@ -39,8 +43,8 @@ async def prepare_demo(draft_id: str, request: DemoPrepareRequest):
             detail="Explicit user confirmation is required before initiating demo form filling."
         )
 
-    result = application_service.prepare_demo(draft_id)
+    result = application_service.prepare_demo(draft_id, user_id=citizen_id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Draft not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Draft not found or unauthorized.")
     return result
 

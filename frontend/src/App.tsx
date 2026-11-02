@@ -26,11 +26,31 @@ import { api, ProfileData, AuthUser } from './api/client';
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'discovery' | 'detail' | 'assistant' | 'documents' | 'application' | 'profile'>('dashboard');
   const [selectedSchemeSlug, setSelectedSchemeSlug] = useState<string | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [profile, setProfile] = useState<ProfileData>({});
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Sync state with URL hash for browser history, Back/Forward, and bookmarks
+  useEffect(() => {
+    const parseHash = () => {
+      const hash = window.location.hash.replace('#', '').trim();
+      if (!hash) return;
+      if (hash.startsWith('detail/')) {
+        const slug = hash.replace('detail/', '');
+        setSelectedSchemeSlug(slug);
+        setActiveTab('detail');
+      } else if (['dashboard', 'discovery', 'assistant', 'documents', 'application', 'profile'].includes(hash)) {
+        setActiveTab(hash as any);
+      }
+    };
+
+    parseHash();
+    window.addEventListener('hashchange', parseHash);
+    return () => window.removeEventListener('hashchange', parseHash);
+  }, []);
 
   useEffect(() => {
     // Check if citizen is logged in
@@ -66,9 +86,15 @@ export const App: React.FC = () => {
     setShowAuthModal(true);
   };
 
-  const handleNavigate = (tab: string, schemeSlug?: string) => {
+  const handleNavigate = (tab: string, schemeSlug?: string, categoryQuery?: string) => {
     if (schemeSlug) {
       setSelectedSchemeSlug(schemeSlug);
+      window.location.hash = `detail/${schemeSlug}`;
+    } else {
+      window.location.hash = tab;
+    }
+    if (categoryQuery !== undefined) {
+      setSelectedCategory(categoryQuery);
     }
     setActiveTab(tab as any);
     setMobileMenuOpen(false);
@@ -288,7 +314,7 @@ export const App: React.FC = () => {
       {/* Main Body Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'dashboard' && <DashboardPage onNavigate={handleNavigate} profile={profile} />}
-        {activeTab === 'discovery' && <SchemeDiscoveryPage onNavigate={handleNavigate} />}
+        {activeTab === 'discovery' && <SchemeDiscoveryPage onNavigate={handleNavigate} initialCategory={selectedCategory} />}
         {activeTab === 'detail' && selectedSchemeSlug && (
           <SchemeDetailPage 
             slug={selectedSchemeSlug} 

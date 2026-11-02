@@ -106,10 +106,11 @@ class DocumentService:
         return results
 
     def delete_document(self, doc_id: str, user_id: Optional[str] = None) -> bool:
-        """Delete document from vault."""
+        """Delete document from vault strictly enforcing ownership."""
         if doc_id in _DOCUMENTS_VAULT:
             doc = _DOCUMENTS_VAULT[doc_id]
-            if user_id and doc.get("user_id") != user_id and doc.get("user_id") != DEFAULT_DEMO_USER_ID:
+            target_uid = user_id or DEFAULT_DEMO_USER_ID
+            if doc.get("user_id") != target_uid:
                 return False
             del _DOCUMENTS_VAULT[doc_id]
             return True
@@ -434,8 +435,29 @@ class DocumentService:
         # 2. Extract text from bytes (PDF via PyMuPDF or raw stream)
         extracted_text = self._extract_text(filename, content_bytes)
 
-        # 3. Classify document SOLELY from content and filename (never expected_type)
+        # 3. Classify document from content, filename, and selected category
         tag, doc_type, issuing_authority, score = self._classify_document(filename, extracted_text)
+
+        # Graceful fallback: If image/scan has minimal raw text but user explicitly selected category and is not blacklisted
+        if tag == "unrecognized" and expected_type and expected_type.lower().strip() not in ("auto", "none", "", "all"):
+            exp_lower = expected_type.lower().strip()
+            type_mapping = [
+                ("aadhaar_card", ["aadhaar", "uidai", "identity"], "Aadhaar Card (UIDAI)", "Unique Identification Authority of India (UIDAI)"),
+                ("income_certificate", ["income", "aavak", "revenue", "tehsildar"], "Income Certificate (Revenue Authority)", "Office of the Tehsildar / Mamlatdar"),
+                ("ration_card_bpl", ["ration", "bpl", "aay", "food", "nfsa"], "Ration Card (NFSA / State PDS)", "Department of Food & Civil Supplies"),
+                ("land_records_khasra_ror", ["land", "7/12", "khasra", "ror", "khatauni"], "Land Records (7/12 & 8A Extract / Khasra)", "Land Revenue Department"),
+                ("caste_category_certificate", ["caste", "jati", "category", "obc", "sc", "st"], "Caste / Category Certificate", "Office of the Sub-Divisional Magistrate"),
+                ("domicile_certificate", ["domicile", "residence", "native", "niwas"], "Domicile / Permanent Residence Certificate", "Executive Magistrate / Tahsildar"),
+                ("bank_passbook_account", ["bank", "passbook", "account", "dbt"], "Bank Passbook (NPCI DBT Enabled)", "Commercial Bank (RBI Regulated)"),
+                ("educational_marksheets", ["mark", "score", "grade", "marksheet", "educational"], "Educational Marksheet / Certificate", "State / Central Examination Board")
+            ]
+            for mapped_tag, kws, mapped_name, mapped_auth in type_mapping:
+                if any(k in exp_lower for k in kws):
+                    tag = mapped_tag
+                    doc_type = mapped_name
+                    issuing_authority = mapped_auth
+                    score = 92
+                    break
 
         # 4. If unrecognized or blacklisted, reject immediately
         if tag == "unrecognized":

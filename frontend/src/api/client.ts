@@ -164,56 +164,41 @@ export const api = {
   },
 
   async login(emailOrMobile: string, password: string): Promise<AuthUser> {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email_or_mobile: emailOrMobile, password })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      this.setStoredUser(data);
+      return data;
+    }
+    let errorMsg = 'Invalid credentials. Please check your email/mobile or access PIN.';
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email_or_mobile: emailOrMobile, password })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        this.setStoredUser(data);
-        return data;
-      }
+      const errData = await res.json();
+      errorMsg = errData.detail || (errData.error && errData.error.message) || errorMsg;
     } catch {}
-
-    // Resilient fallback for newly registered or logged in citizen
-    const fallbackUser: AuthUser = {
-      user_id: "user-" + Date.now(),
-      full_name: emailOrMobile.split('@')[0].replace('.', ' ').replace(/^./, str => str.toUpperCase()),
-      email_or_mobile: emailOrMobile,
-      access_token: "token_" + Date.now(),
-      state_code: "",
-      is_demo_user: false
-    };
-    this.setStoredUser(fallbackUser);
-    return fallbackUser;
+    throw new Error(errorMsg);
   },
 
   async register(data: { full_name: string; email_or_mobile: string; state_code?: string; password: string }): Promise<AuthUser> {
+    const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (res.ok) {
+      const userData = await res.json();
+      this.setStoredUser(userData);
+      return userData;
+    }
+    let errorMsg = 'Registration failed. Please check your details.';
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (res.ok) {
-        const userData = await res.json();
-        this.setStoredUser(userData);
-        return userData;
-      }
+      const errData = await res.json();
+      errorMsg = errData.detail || (errData.error && errData.error.message) || errorMsg;
     } catch {}
-
-    const fallbackUser: AuthUser = {
-      user_id: "user-" + Date.now(),
-      full_name: data.full_name,
-      email_or_mobile: data.email_or_mobile,
-      state_code: data.state_code || "",
-      access_token: "token_" + Date.now(),
-      is_demo_user: false
-    };
-    this.setStoredUser(fallbackUser);
-    return fallbackUser;
+    throw new Error(errorMsg);
   },
 
   async loginDemo(): Promise<AuthUser> {
@@ -323,15 +308,18 @@ export const api = {
   },
 
   async updateProfile(data: ProfileData): Promise<ProfileData> {
+    const res = await fetch(`${API_BASE_URL}/profiles/me`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (res.ok) return await res.json();
+    let errDetail = 'Failed to save profile. Please verify that all input fields meet the requirements.';
     try {
-      const res = await fetch(`${API_BASE_URL}/profiles/me`, {
-        method: 'PUT',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(data)
-      });
-      if (res.ok) return await res.json();
+      const err = await res.json();
+      errDetail = err.detail || (err.error && err.error.message) || errDetail;
     } catch {}
-    return { ...data, completeness_percentage: 95 };
+    throw new Error(errDetail);
   },
 
   async listDocuments(): Promise<UserDocument[]> {
@@ -575,8 +563,12 @@ export const api = {
         headers: this.getAuthHeaders()
       });
       if (res.ok) return true;
-    } catch {}
-    return true;
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to delete document from vault');
+    } catch (e: any) {
+      console.error(e);
+      throw e;
+    }
   },
 
   async listDrafts(): Promise<any[]> {
@@ -609,11 +601,65 @@ export const api = {
     return [];
   },
 
-  async listSchemes(params?: { q?: string; state?: string; level?: string; page?: number; page_size?: number }): Promise<{ total: number; items: SchemeItem[] }> {
+  async createDraft(schemeId: string, formData?: Record<string, any>): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/applications/drafts`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ scheme_id: schemeId, form_data: formData || {} })
+    });
+    if (res.ok) return await res.json();
+    let errDetail = 'Failed to create application draft';
+    try {
+      const err = await res.json();
+      errDetail = err.detail || (err.error && err.error.message) || errDetail;
+    } catch {}
+    throw new Error(errDetail);
+  },
+
+  async prepareDemo(draftId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/applications/drafts/${draftId}/prepare-demo`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ confirmed_by_user: true })
+    });
+    if (res.ok) return await res.json();
+    let errDetail = 'Failed to prepare demo application';
+    try {
+      const err = await res.json();
+      errDetail = err.detail || (err.error && err.error.message) || errDetail;
+    } catch {}
+    throw new Error(errDetail);
+  },
+
+  async getRecommendations(profile: { state_code?: string; occupation?: string; annual_family_income?: number; caste_category?: string }): Promise<SchemeItem[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/schemes/recommendations`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(profile)
+      });
+      if (res.ok) return await res.json();
+    } catch {}
+    const list = await this.listSchemes({ page_size: 6 });
+    return list.items.slice(0, 3);
+  },
+
+  async getSchemeDocumentChecklist(schemeSlug: string): Promise<any> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/documents/checklist/${schemeSlug}`, {
+        headers: this.getAuthHeaders()
+      });
+      if (res.ok) return await res.json();
+    } catch {}
+    return null;
+  },
+
+  async listSchemes(params?: { q?: string; state?: string; level?: string; scheme_type?: string; page?: number; page_size?: number }): Promise<{ total: number; items: SchemeItem[] }> {
     const query = new URLSearchParams();
     if (params?.q) query.set('q', params.q);
     if (params?.state) query.set('state', params.state);
     if (params?.level) query.set('level', params.level);
+    if (params?.scheme_type) query.set('scheme_type', params.scheme_type);
     if (params?.page) query.set('page', params.page.toString());
     query.set('page_size', (params?.page_size || 12).toString());
 
@@ -883,31 +929,10 @@ export const api = {
     };
   },
 
-  async getSchemeDocumentChecklist(slug: string): Promise<{ scheme_id: string; required_documents: string[]; uploaded_documents: string[]; missing_documents: string[] }> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/documents/checklist/${slug}`, {
-        headers: this.getAuthHeaders()
-      });
-      if (res.ok) return await res.json();
-    } catch {}
-
-    const detail = await this.getSchemeDetail(slug);
-    const required = detail.detected_document_tags || [
-      "aadhaar_card", "income_certificate", "educational_marksheets", "bonafide_student_certificate"
-    ];
-    const docs = await this.listDocuments();
-    const uploaded = docs.map(d => d.detected_type?.toLowerCase() || '').filter(Boolean);
-    const missing = required.filter(r => !uploaded.some(u => u.includes(r.replace('_', ' '))));
-
-    return {
-      scheme_id: slug,
-      required_documents: required,
-      uploaded_documents: uploaded,
-      missing_documents: missing
-    };
-  },
-
   async queryAssistant(question: string, schemeId?: string): Promise<AssistantResponse> {
+    if (question.length > 500) {
+      throw new Error("Question exceeds maximum allowed limit of 500 characters. Please shorten your question.");
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/assistant/query`, {
         method: 'POST',
@@ -915,7 +940,13 @@ export const api = {
         body: JSON.stringify({ question, scheme_id: (schemeId === 'all' || !schemeId) ? undefined : schemeId })
       });
       if (res.ok) return await res.json();
-    } catch {}
+      const err = await res.json();
+      throw new Error(err.detail || (err.error && err.error.message) || 'Failed to query assistant');
+    } catch (e: any) {
+      if (e.message && !e.message.includes('fetch')) {
+        throw e;
+      }
+    }
 
     const qLower = question.toLowerCase();
     if (qLower.includes("disney") || qLower.includes("canada") || qLower.includes("weather") || qLower.includes("movie")) {
