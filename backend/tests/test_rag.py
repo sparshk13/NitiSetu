@@ -77,15 +77,19 @@ def test_rag_insufficient_evidence_handling():
 
 
 def test_rag_formatted_structure():
-    """Answers are formatted with structured headings and direct answers."""
+    """Answers are formatted with structured bullet points and direct answers without filler."""
     req = AssistantQueryRequest(
         scheme_id="national-scholarship-post-matric",
         question="What is the family income limit for the scholarship?"
     )
     resp = rag_service.answer_query(req)
-    assert "Direct Answer" in resp.answer
-    assert "Key Policy Details" in resp.answer or "Key Provisions" in resp.answer
-    assert "Important Exclusions" in resp.answer or "Exclusions" in resp.answer
+    assert not resp.insufficient_evidence
+    # Must be structured with bullet points or bold keys
+    assert "**" in resp.answer or "- " in resp.answer
+    assert "₹2,50,000" in resp.answer
+    # No conversational fluff
+    assert not any(phrase in resp.answer.lower() for phrase in ["certainly!", "great question", "i would be happy to help"])
+
 
 
 def test_rag_exclusion_verdict_income_tax_pmkisan():

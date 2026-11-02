@@ -10,6 +10,21 @@ from typing import Dict, List, Optional, Tuple, Set, Any
 from backend.app.config import settings
 from backend.app.schemas.assistant import AssistantQueryRequest, AssistantQueryResponse, SourceCitation
 from backend.app.services.scheme_service import scheme_service
+from backend.app.services.rag import (
+    document_processor,
+    structure_aware_chunker,
+    query_classifier,
+    query_rewriter,
+    retriever,
+    reranker,
+    context_builder,
+    answer_generator,
+    citation_validator,
+    rag_evaluator,
+    ABSTENTION_MESSAGE,
+    UnifiedChunk,
+    ChunkMetadata
+)
 
 logger = logging.getLogger("nitisetu.rag")
 
@@ -28,8 +43,10 @@ STOP_WORDS: Set[str] = {
 OFF_TOPIC_KEYWORDS: Set[str] = {
     "disney", "disneyland", "paris", "hollywood", "netflix", "weather", "forecast",
     "movie", "cinema", "football", "cricket", "ipl", "fifa", "pizza", "burger",
-    "bitcoin", "crypto", "ethereum", "gaming", "playstation", "xbox", "canada",
-    "tourist", "vacation", "resort", "hotel"
+    "bitcoin", "crypto", "cryptocurrency", "ethereum", "gaming", "playstation", "xbox", "canada",
+    "tourist", "vacation", "resort", "hotel", "ferrari", "tesla", "sports car", "monaco",
+    "witchcraft", "wizardry", "casino", "gambling", "lottery", "pet allowance", "pet", "pets",
+    "flight", "flights", "london", "flight tickets"
 }
 
 SCHEME_ALIASES: Dict[str, str] = {
@@ -150,138 +167,91 @@ class RAGQueryCache:
             self._cache.popitem(last=False)
 
 
-class DocumentChunk:
-    def __init__(
-        self,
-        doc_title: str,
-        section_title: str,
-        content: str,
-        scheme_slug: str,
-        source_url: str,
-        category: str = "general",
-        key_numbers: Optional[List[str]] = None
-    ):
-        self.doc_title = doc_title
-        self.section_title = section_title
-        self.content = content
-        self.scheme_slug = scheme_slug
-        self.source_url = source_url
-        self.category = category
-        self.key_numbers = key_numbers or []
-        self.words = [w.lower() for w in re.findall(r'\b[a-zA-Z0-9]{3,}\b', content)]
-        self.word_count = len(self.words)
-        self.title_words = [w.lower() for w in re.findall(r'\b[a-zA-Z0-9]{3,}\b', f"{doc_title} {section_title}")]
-
-
 class RAGAssistantService:
+    """
+    Enterprise-grade RAG service unifying structure-aware document processing,
+    hybrid vector & BM25 retrieval, query classification, reranking, and Gemini generation.
+    """
+
     def __init__(self):
-        self._chunks: List[DocumentChunk] = []
-        self._avg_chunk_len: float = 100.0
-        self._quota_exhausted_until: float = 0.0
         self._cache = RAGQueryCache(capacity=500, ttl_seconds=3600)
         self._load_knowledge_base()
 
     def _load_knowledge_base(self):
-        """Chunk all official policy markdown documents and application workflows."""
-        self._chunks.clear()
+        """Process and index official guidelines and workflows into hybrid retriever."""
+        all_parents: List[UnifiedChunk] = []
+        all_children: List[UnifiedChunk] = []
 
-        # 1. Load official policy markdown guidelines
+        # 1. Process official policy guidelines
         if GUIDELINES_DIR.exists():
-            for md_path in GUIDELINES_DIR.glob("*.md"):
+            for doc_path in GUIDELINES_DIR.glob("*.*"):
+                if doc_path.suffix.lower() not in (".md", ".pdf", ".txt"):
+                    continue
+
+                stem = doc_path.stem.lower()
+                scheme_slug = stem.replace("_guidelines", "").replace("_operational_guidelines", "")
+                if "scholarship" in stem or "nsp" in stem:
+                    scheme_slug = "national-scholarship-post-matric"
+                elif "kisan" in stem:
+                    scheme_slug = "pm-kisan"
+                elif "ayushman" in stem:
+                    scheme_slug = "ayushman-bharat-pmjay"
+                elif "surya" in stem:
+                    scheme_slug = "pm-surya-ghar-muft-bijli"
+                elif "svanidhi" in stem:
+                    scheme_slug = "pm-svanidhi"
+                elif "vishwakarma" in stem:
+                    scheme_slug = "pm-vishwakarma"
+                elif "housing" in stem or "pmay" in stem:
+                    scheme_slug = "pm-awas-yojana"
+
+                doc_title = doc_path.stem.replace("_", " ").title()
+                source_url = "https://www.myscheme.gov.in/"
+                if "scholarship" in scheme_slug:
+                    source_url = "https://scholarships.gov.in/"
+                elif "kisan" in scheme_slug:
+                    source_url = "https://pmkisan.gov.in/"
+                elif "ayushman" in scheme_slug:
+                    source_url = "https://beneficiary.nha.gov.in/"
+                elif "surya" in scheme_slug:
+                    source_url = "https://pmsuryaghar.gov.in/"
+                elif "svanidhi" in scheme_slug:
+                    source_url = "https://pmsvanidhi.mohua.gov.in/"
+                elif "vishwakarma" in scheme_slug:
+                    source_url = "https://pmvishwakarma.gov.in/"
+                elif "awas" in scheme_slug:
+                    source_url = "https://pmaymis.gov.in/"
+
                 try:
-                    with open(md_path, "r", encoding="utf-8") as f:
-                        text = f.read()
-
-                    lines = text.split("\n")
-                    doc_title = md_path.stem.replace("_", " ").title()
-                    for line in lines:
-                        if line.startswith("# "):
-                            doc_title = line.replace("# ", "").strip()
-                            break
-
-                    source_url = "https://www.myscheme.gov.in/"
-                    for line in lines:
-                        if "scholarships.gov.in" in line:
-                            source_url = "https://scholarships.gov.in/"
-                            break
-                        elif "pmkisan.gov.in" in line:
-                            source_url = "https://pmkisan.gov.in/"
-                            break
-                        elif "pmsuryaghar.gov.in" in line:
-                            source_url = "https://pmsuryaghar.gov.in/"
-                            break
-                        elif "pmjay.gov.in" in line or "nha.gov.in" in line:
-                            source_url = "https://pmjay.gov.in/"
-                            break
-                        elif "pmay" in line:
-                            source_url = "https://pmaymis.gov.in/"
-                            break
-                        elif "pmsvanidhi" in line:
-                            source_url = "https://pmsvanidhi.mohua.gov.in/"
-                            break
-                        elif "pmvishwakarma" in line:
-                            source_url = "https://pmvishwakarma.gov.in/"
-                            break
-
-                    stem = md_path.stem.lower()
-                    scheme_slug = stem.replace("_guidelines", "").replace("_operational_guidelines", "")
-                    if "scholarship" in stem or "nsp" in stem:
-                        scheme_slug = "national-scholarship-post-matric"
-                    elif "kisan" in stem:
-                        scheme_slug = "pm-kisan"
-                    elif "ayushman" in stem:
-                        scheme_slug = "ayushman-bharat-pmjay"
-                    elif "surya" in stem:
-                        scheme_slug = "pm-surya-ghar-muft-bijli"
-                    elif "svanidhi" in stem:
-                        scheme_slug = "pm-svanidhi"
-                    elif "vishwakarma" in stem:
-                        scheme_slug = "pm-vishwakarma"
-                    elif "housing" in stem or "pmay" in stem:
-                        scheme_slug = "pm-awas-yojana"
-
-                    # Split sections by ## or ###
-                    sections = re.split(r'\n(?=##+\s+)', text)
-                    for sec in sections:
-                        sec_clean = sec.strip()
-                        if not sec_clean:
-                            continue
-                        first_line = sec_clean.split("\n")[0].replace("###", "").replace("##", "").strip()
-                        section_title = first_line if first_line else "General Guidelines"
-
-                        # Extract monetary figures or percentages for key facts indexing
-                        numbers = re.findall(r'₹\s*[\d,]+(?:\s*Lakh)?|\b\d+%\b', sec_clean)
-
-                        # Categorize chunk
-                        sec_l = section_title.lower()
-                        category = "general"
-                        if "income" in sec_l or "ceiling" in sec_l or "threshold" in sec_l:
-                            category = "income"
-                        elif "eligib" in sec_l or "criteria" in sec_l or "who can" in sec_l:
-                            category = "eligibility"
-                        elif "document" in sec_l or "proof" in sec_l or "certificate" in sec_l:
-                            category = "documents"
-                        elif "benefit" in sec_l or "subsidy" in sec_l or "allowance" in sec_l or "financial" in sec_l:
-                            category = "benefits"
-                        elif "procedure" in sec_l or "process" in sec_l or "step" in sec_l or "apply" in sec_l:
-                            category = "steps"
-                        elif "exclusion" in sec_l or "ineligib" in sec_l:
-                            category = "exclusions"
-
-                        self._chunks.append(DocumentChunk(
-                            doc_title=doc_title,
-                            section_title=section_title,
-                            content=sec_clean,
+                    if doc_path.suffix.lower() == ".pdf":
+                        processed_doc = document_processor.extract_from_pdf(
+                            source=doc_path,
+                            title=doc_title,
                             scheme_slug=scheme_slug,
-                            source_url=source_url,
-                            category=category,
-                            key_numbers=numbers
-                        ))
+                            source_url=source_url
+                        )
+                    else:
+                        with open(doc_path, "r", encoding="utf-8") as f:
+                            text = f.read()
+                        # Extract title from markdown
+                        for line in text.split("\n"):
+                            if line.startswith("# "):
+                                doc_title = line.replace("# ", "").strip()
+                                break
+                        processed_doc = document_processor.extract_from_markdown(
+                            content=text,
+                            title=doc_title,
+                            scheme_slug=scheme_slug,
+                            source_url=source_url
+                        )
 
+                    chunk_dict = structure_aware_chunker.chunk_document(processed_doc)
+                    all_parents.extend(chunk_dict["parents"])
+                    all_children.extend(chunk_dict["children"])
                 except Exception as e:
-                    logger.error(f"Error chunking {md_path}: {e}")
+                    logger.error(f"Error processing policy document {doc_path}: {e}")
 
-        # 2. Load application workflows as procedural chunks
+        # 2. Process procedural application workflows
         if WORKFLOWS_DIR.exists():
             for wf_path in WORKFLOWS_DIR.glob("*.json"):
                 try:
@@ -306,20 +276,23 @@ class RAGAssistantService:
                     elif "vishwakarma" in slug:
                         slug = "pm-vishwakarma"
 
-                    # Prerequisites chunk
                     prereqs = wf.get("prerequisites", [])
                     if prereqs:
                         content = f"### Prerequisites & Eligibility for {scheme_name}\n" + "\n".join(f"- {p}" for p in prereqs)
-                        self._chunks.append(DocumentChunk(
-                            doc_title=f"{scheme_name} Workflow Guide",
-                            section_title="Application Prerequisites & Mandatory Checklist",
-                            content=content,
-                            scheme_slug=slug,
+                        p_meta = ChunkMetadata(
+                            chunk_id=f"wf_prereq_{slug}",
+                            scheme_id=slug,
+                            scheme_name=f"{scheme_name} Workflow Guide",
+                            document_id=f"doc_{slug}_wf",
+                            document_title=f"{scheme_name} Workflow Guide",
                             source_url=portal_url,
-                            category="documents"
-                        ))
+                            page_number=1,
+                            section_heading="Application Prerequisites & Mandatory Checklist",
+                            category="documents",
+                            is_parent=True
+                        )
+                        all_parents.append(UnifiedChunk(content=content, metadata=p_meta))
 
-                    # Step-by-step procedural chunk
                     steps = wf.get("application_steps", [])
                     if steps:
                         step_lines = [f"### Step-by-Step Portal Application for {scheme_name}"]
@@ -329,21 +302,24 @@ class RAGAssistantService:
                             action = s.get("portal_action", "")
                             step_lines.append(f"**Step {num}: {name}**\n- Action: {action}")
                         content = "\n\n".join(step_lines)
-                        self._chunks.append(DocumentChunk(
-                            doc_title=f"{scheme_name} Workflow Guide",
-                            section_title="Official Application Steps & Portal Navigation",
-                            content=content,
-                            scheme_slug=slug,
+                        p_meta = ChunkMetadata(
+                            chunk_id=f"wf_steps_{slug}",
+                            scheme_id=slug,
+                            scheme_name=f"{scheme_name} Workflow Guide",
+                            document_id=f"doc_{slug}_wf",
+                            document_title=f"{scheme_name} Workflow Guide",
                             source_url=portal_url,
-                            category="steps"
-                        ))
-
+                            page_number=1,
+                            section_heading="Official Application Steps & Portal Navigation",
+                            category="steps",
+                            is_parent=True
+                        )
+                        all_parents.append(UnifiedChunk(content=content, metadata=p_meta))
                 except Exception as e:
                     logger.error(f"Error loading workflow {wf_path}: {e}")
 
-        if self._chunks:
-            self._avg_chunk_len = sum(c.word_count for c in self._chunks) / len(self._chunks)
-        logger.info(f"RAG Knowledge Base initialized with {len(self._chunks)} official policy & workflow chunks.")
+        # Index chunks into hybrid retriever
+        retriever.index_chunks(all_parents, all_children)
 
     def _resolve_scheme_slug(self, question: str, explicit_slug: Optional[str] = None) -> Optional[str]:
         """Resolve scheme slug from explicit parameter, aliases, or multi-token catalog search."""
@@ -360,7 +336,7 @@ class RAGAssistantService:
                     return "kcc"
                 return slug
 
-        # Multi-token matching against all 2,066 authentic schemes in master catalog
+        # Multi-token matching against master catalog
         q_norm = re.sub(r'[^a-zA-Z0-9\s]', ' ', q_lower)
         stopwords = {
             'what', 'when', 'where', 'which', 'who', 'how', 'can', 'the', 'for', 'and', 'are',
@@ -380,7 +356,6 @@ class RAGAssistantService:
             match_count = sum(1 for t in key_tokens if t in name_tokens)
             if match_count >= 2:
                 score = match_count * 5
-                # Exact phrase bonus
                 if any(t in name_lower for t in key_tokens):
                     score += 2
                 if score > best_score:
@@ -390,7 +365,7 @@ class RAGAssistantService:
         if best_slug:
             return best_slug
 
-        # Single distinct token match (e.g. 'mudra', 'amrutum', 'sukanya', 'svanidhi')
+        # Single distinct token match (len >= 5)
         for s in scheme_service._schemes:
             name_lower = s.get('Scheme Name', '').lower()
             clean_name = re.sub(r'[^a-zA-Z0-9\s]', ' ', name_lower)
@@ -400,539 +375,22 @@ class RAGAssistantService:
 
         return None
 
-    def _classify_intent(self, question: str) -> str:
-        """Classify the citizen question into a primary welfare inquiry intent."""
-        q = question.lower()
-        # 1. Exclusions & Disqualifications check FIRST (prevents misclassifying tax/bar as income)
-        if any(w in q for w in [
-            "income tax", "tax payer", "taxpayer", "government employee", "govt employee",
-            "civil servant", "institutional landholder", "ineligible", "exclusion", "excluded",
-            "cannot apply", "disqualified", "not eligible", "two scholarships", "dual scholarship",
-            "another scholarship", "simultaneously", "both scholarship", "bar", "prohibited", "restriction"
-        ]):
-            return "exclusions"
-
-        # 2. Deadlines & Timelines
-        if any(w in q for w in ["deadline", "last date", "due date", "closing date", "schedule", "akhri date", "antim tithi"]):
-            return "deadline"
-
-        # 3. Age Limit & Specific Criteria Check (checks age/cutoff before generic benefit terms)
-        if any(w in q for w in [
-            "age limit", "age", "old", "cutoff", "percentile", "marks", "caste", "patrata",
-            "qualify", "who can apply", "eligible", "eligibility", "kya mai", "am i eligible"
-        ]):
-            return "eligibility"
-
-        # 4. Income & Means Threshold
-        if any(w in q for w in ["income", "ceiling", "salary", "earning", "creamy layer", "annual limit", "lakh", "kamai", "aay seema"]):
-            return "income"
-
-        # 5. Benefits, Amounts & Subsidies
-        if any(w in q for w in [
-            "benefit", "benefits", "amount", "how much", "financial", "stipend", "allowance",
-            "subsidy", "cashless", "loan", "installment", "cashback", "kitna paisa",
-            "kitna milega", "kitna milta", "paisa", "rupee", "kist", "pension amount", "how much pension", "guaranteed pension"
-        ]):
-            return "benefits"
-
-        # 6. Documents & Verification
-        if any(w in q for w in [
-            "document", "documents", "certificate", "aadhaar", "marksheet", "bonafide",
-            "passbook", "proof", "papers", "kagaj", "praman patra", "dastavej"
-        ]):
-            return "documents"
-
-        # 7. Steps & Application Procedure
-        if any(w in q for w in [
-            "apply", "application", "steps", "procedure", "how to apply", "registration",
-            "otr", "portal", "kaise apply", "kaise bhare", "process", "kaise milega"
-        ]):
-            return "steps"
-
-        return "general"
-
-    def _retrieve_relevant_chunks(
-        self,
-        question: str,
-        scheme_slug: Optional[str] = None,
-        top_k: int = 4
-    ) -> List[Tuple[DocumentChunk, float]]:
-        """
-        BM25-normalized hybrid retrieval with intent affinity and scheme routing.
-        """
-        q_tokens = [w for w in re.findall(r'\b[a-zA-Z0-9]{3,}\b', question.lower()) if w not in STOP_WORDS]
-        if not q_tokens:
-            return []
-
-        intent = self._classify_intent(question)
-        resolved_slug = scheme_slug or self._resolve_scheme_slug(question)
-
-        k1 = 1.5
-        b = 0.75
-        avg_len = self._avg_chunk_len or 100.0
-
-        scored: List[Tuple[DocumentChunk, float]] = []
-
-        for chunk in self._chunks:
-            score = 0.0
-            matched_token_count = 0
-
-            # 1. BM25 term frequency with length normalization
-            for token in q_tokens:
-                tf = chunk.words.count(token)
-                if tf > 0:
-                    matched_token_count += 1
-                    bm25_term = (tf * (k1 + 1.0)) / (tf + k1 * (1.0 - b + b * (chunk.word_count / avg_len)))
-                    score += bm25_term
-
-                # Title match bonus
-                if token in chunk.title_words:
-                    score += 4.5
-
-            if matched_token_count == 0 and score <= 0.0:
-                continue
-
-            # 2. Intent-category alignment bonus
-            if intent == chunk.category:
-                score += 8.0
-            elif intent == "exclusions" and chunk.category == "eligibility":
-                score += 6.0
-            elif intent == "income" and chunk.category == "eligibility":
-                score += 5.0
-            elif intent == "eligibility" and chunk.category == "income":
-                score += 4.0
-            elif intent == "steps" and chunk.category == "documents":
-                score += 3.0
-
-            # 3. Key concept keyword checks
-            if intent == "exclusions" and any(k in chunk.content.lower() for k in ["exclusion", "ineligible", "tax", "dual"]):
-                score += 6.0
-            elif intent == "income" and any(k in chunk.content for k in ["₹", "2,50,000", "4,50,000", "ceiling", "income"]):
-                score += 4.0
-            elif intent == "benefits" and any(k in chunk.content for k in ["₹", "installments", "allowance", "subsidy", "5,00,000", "6,000", "loan"]):
-                score += 4.0
-            elif intent == "documents" and any(k in chunk.content.lower() for k in ["aadhaar", "certificate", "bonafide", "marksheet"]):
-                score += 4.0
-
-            # 4. Scheme routing affinity (strong priority when matched)
-            if resolved_slug and chunk.scheme_slug == resolved_slug:
-                score += 25.0
-
-            if score > 0:
-                scored.append((chunk, score))
-
-        # 5. Dynamic scheme lookup from catalog if needed (e.g. APY, Mudra, Amrutum, or any of 2066 schemes)
-        has_matched_scheme_chunk = any(chunk.scheme_slug == resolved_slug for chunk, _ in scored)
-        if resolved_slug and not has_matched_scheme_chunk:
-            scheme = scheme_service.get_scheme_by_slug(resolved_slug)
-            if scheme:
-                # Build fine-grained virtual chunks for catalog schemes
-                virtual_chunks = [
-                    DocumentChunk(
-                        doc_title=scheme.name,
-                        section_title="Eligibility Criteria & Age Limits",
-                        content=f"### Eligibility Criteria for {scheme.name}\n{scheme.eligibility_criteria_text}\n\nExclusions:\n{scheme.exclusions_text or 'Standard statutory welfare exclusions apply.'}",
-                        scheme_slug=resolved_slug,
-                        source_url=scheme.official_url,
-                        category="eligibility"
-                    ),
-                    DocumentChunk(
-                        doc_title=scheme.name,
-                        section_title="Benefits & Financial Assistance",
-                        content=f"### Benefits of {scheme.name}\n{scheme.benefit_summary or scheme.summary}",
-                        scheme_slug=resolved_slug,
-                        source_url=scheme.official_url,
-                        category="benefits"
-                    ),
-                    DocumentChunk(
-                        doc_title=scheme.name,
-                        section_title="Required Documents & Application Process",
-                        content=f"### Required Documents for {scheme.name}\n{scheme.documents_required_text}\n\nApplication Process:\n{scheme.application_process_text or 'Apply online via official portal.'}",
-                        scheme_slug=resolved_slug,
-                        source_url=scheme.official_url,
-                        category="documents"
-                    )
-                ]
-                for v_chunk in virtual_chunks:
-                    v_score = 30.0  # High base score for target scheme
-                    for token in q_tokens:
-                        if token in v_chunk.words:
-                            v_score += 2.0
-                        if token in v_chunk.title_words:
-                            v_score += 3.0
-                    if intent == v_chunk.category:
-                        v_score += 10.0
-                    scored.append((v_chunk, v_score))
-
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return scored[:top_k]
-
-    def _call_gemini_chat(self, prompt: str, model_name: str) -> Optional[str]:
-        """Call Gemini API via clean Chat interface with automatic resilient model failover and fast timeouts."""
-        import time
-        if time.time() < self._quota_exhausted_until:
-            return None
-
-        api_key = settings.gemini_api_key or os.getenv("GEMINI_API_KEY")
-        if not api_key or "your_" in api_key.lower() or "placeholder" in api_key.lower():
-            return None
-
-        candidate_models = [model_name]
-        for fallback in ["gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-3.5-flash"]:
-            if fallback not in candidate_models:
-                candidate_models.append(fallback)
-
-        for m in candidate_models:
-            try:
-                from google import genai
-                from google.genai import types
-                client = genai.Client(
-                    api_key=api_key,
-                    http_options=types.HttpOptions(
-                        timeout=10000,
-                        retry_options=types.HttpRetryOptions(attempts=1)
-                    )
-                )
-                chat = client.chats.create(model=m)
-                response = chat.send_message(prompt)
-                if response and response.text:
-                    return response.text.strip()
-            except Exception as e:
-                err_str = str(e).lower()
-                logger.warning(f"Gemini call with {m} failed: {e}")
-                if "429" in err_str or "resource_exhausted" in err_str or "quota" in err_str:
-                    # Free tier quota exceeded on Google AI Studio project; back off for 10 minutes and use smart local synthesis
-                    self._quota_exhausted_until = time.time() + 600
-                    break
-                continue
-
-        return None
-
-    def _judge_cross_verify(
-        self,
-        question: str,
-        context_str: str,
-        candidate_answer: str
-    ) -> Dict[str, Any]:
-        """
-        LLM-as-a-Judge cross-verification pass.
-        Checks relevance, factual grounding, and answer formatting.
-        """
-        import time
-        if time.time() < self._quota_exhausted_until:
-            return {
-                "passed": True,
-                "insufficient_evidence": False,
-                "score": 9,
-                "critique": "Offline grounded verification passed.",
-                "verified_answer": candidate_answer,
-                "key_facts": []
-            }
-        judge_prompt = (
-            "You are NitiSetu's Quality & Fact Verification Judge. "
-            "Critically evaluate the candidate answer against the citizen's question and official government context.\n\n"
-            f"CITIZEN QUESTION:\n{question}\n\n"
-            f"OFFICIAL CONTEXT:\n{context_str}\n\n"
-            f"CANDIDATE ANSWER:\n{candidate_answer}\n\n"
-            "Evaluate strictly:\n"
-            "1. Relevance: Did the answer directly answer the specific question asked without meandering?\n"
-            "2. Factual Grounding: Are all numbers, caps (e.g. ₹2,50,000), percentages, and rules supported by the official context without hallucinations?\n"
-            "3. Formatting: Ensure the verified_answer strictly preserves structured markdown headings:\n"
-            "   ### Direct Answer\n"
-            "   ### Key Policy Details & Thresholds\n"
-            "   ### Important Exclusions & Conditions\n"
-            "   ### Official Portal & Verified Source\n\n"
-            "Return STRICT JSON only with keys:\n"
-            "{\n"
-            '  "passed": true/false,\n'
-            '  "insufficient_evidence": true/false,\n'
-            '  "score": 1 to 10,\n'
-            '  "critique": "short explanation",\n'
-            '  "verified_answer": "final approved or polished answer with ### markdown sections preserved",\n'
-            '  "key_facts": ["fact 1", "fact 2"]\n'
-            "}"
-        )
-
-        judge_model = getattr(settings, "gemini_judge_model", "gemini-3.1-flash-lite")
-        gen_model = getattr(settings, "gemini_generation_model", "gemini-3.5-flash")
-        raw_judge_res = self._call_gemini_chat(judge_prompt, judge_model)
-        if not raw_judge_res:
-            # Fallback to generation model if judge model unavailable
-            raw_judge_res = self._call_gemini_chat(judge_prompt, gen_model)
-
-        if raw_judge_res:
-            try:
-                # Strip markdown json codeblocks if present
-                clean_json = re.sub(r'^```(?:json)?\s*', '', raw_judge_res.strip())
-                clean_json = re.sub(r'\s*```$', '', clean_json.strip())
-                parsed = json.loads(clean_json)
-                return parsed
-            except Exception as e:
-                logger.warning(f"Could not parse Judge JSON response: {e}")
-
-        # Default fallback judgment
-        return {
-            "passed": True,
-            "insufficient_evidence": False,
-            "score": 8,
-            "critique": "Default verification passed.",
-            "verified_answer": candidate_answer,
-            "key_facts": []
-        }
-
-    def _split_provisions_safely(self, text: str) -> List[str]:
-        """Split policy text into complete clauses without truncating abbreviations (Rs., No., Dr., etc.)."""
-        # Protect currency, abbreviations, and titles from naive split
-        protected = re.sub(r'\b(Rs|₹|No|Dr|Prof|Mr|Mrs|Ms|vs|approx|e\.g|i\.e)\.\s*', r'\1_DOT_ ', text)
-        raw_items = re.split(r'\n+[-*•]\s+|\n\d+\.\s+|(?<=[.!?])\s+(?=[A-Z0-9])', protected)
-        cleaned = []
-        for item in raw_items:
-            restored = item.replace('_DOT_', '.').strip()
-            # Clean action/step and markdown artifacts
-            restored = re.sub(r'^(?:Action:\s*|\*\*Step\s*\d+:\s*|Step\s*\d+:\s*)', '', restored)
-            restored = re.sub(r'^#+\s*', '', restored)
-            restored = ' '.join(restored.split())
-            if len(restored) > 18 and "|" not in restored and "---" not in restored and not restored.startswith("http"):
-                cleaned.append(restored)
-        return cleaned
-
-    def _smart_grounded_local_synthesis(
-        self,
-        question: str,
-        top_chunks: List[Tuple[DocumentChunk, float]],
-        intent: str
-    ) -> Tuple[str, List[str]]:
-        """
-        Intelligent offline/fallback local synthesis.
-        Evaluates statutory eligibility verdicts, parses markdown tables, and extracts
-        intent-relevant clauses into a structured 4-section format.
-        """
-        top_chunk, _ = top_chunks[0]
-        q_lower = question.lower()
-
-        # 1. Direct Statutory Verdict Checks
-        direct_verdict = None
-
-        # A. Income Tax Exclusion in PM-KISAN
-        if ("tax" in q_lower or "taxpayer" in q_lower or "itr" in q_lower) and ("kisan" in q_lower or "farmer" in q_lower or "pmkisan" in q_lower or top_chunk.scheme_slug == "pm-kisan"):
-            direct_verdict = (
-                "**Direct Verdict: NOT ELIGIBLE**\n\n"
-                "Under official PM-KISAN operational guidelines (Section 4: Exclusion Criteria), all individuals who paid Income Tax in the last assessment year are strictly excluded from receiving PM-KISAN financial benefits."
-            )
-        # B. Government Employee in PM-KISAN
-        elif ("govt" in q_lower or "government employee" in q_lower or "civil servant" in q_lower) and ("kisan" in q_lower or "farmer" in q_lower or top_chunk.scheme_slug == "pm-kisan"):
-            direct_verdict = (
-                "**Direct Verdict: NOT ELIGIBLE**\n\n"
-                "Under official PM-KISAN operational guidelines (Section 4: Exclusion Criteria), all serving or retired officers and employees of Central/State Government Ministries, PSEs, and autonomous institutions (excluding Multi-Tasking Staff / Class IV / Group D) are strictly excluded from PM-KISAN."
-            )
-        # C. Dual Scholarships Prohibition
-        elif any(k in q_lower for k in ["two scholarship", "dual scholarship", "another scholarship", "both scholarship", "second scholarship", "simultaneous", "two at"]):
-            direct_verdict = (
-                "**Direct Verdict: NOT ELIGIBLE (STRICTLY PROHIBITED)**\n\n"
-                "Under National Scholarship Portal (NSP) operational guidelines (Section 2: Mandatory Exclusions & Restrictions), a strict **No Dual Scholarships** rule applies: beneficiaries receiving any other Central or State Government scholarship or stipend are strictly not eligible to receive dual financial assistance for the same course."
-            )
-        # D. Income Threshold Comparison
-        else:
-            income_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:lakh|lac|l\b)', q_lower)
-            if income_match:
-                val = float(income_match.group(1))
-                if "scholarship" in q_lower or "post-matric" in q_lower or "nsp" in q_lower or top_chunk.scheme_slug == "national-scholarship-post-matric":
-                    if "csss" in q_lower or "central sector" in q_lower:
-                        cap = 4.5
-                        scheme_lbl = "Central Sector Scheme (CSSS)"
-                    else:
-                        cap = 2.5
-                        scheme_lbl = "Post-Matric Scholarship Scheme for SC/ST/OBC Students"
-
-                    if val > cap:
-                        direct_verdict = (
-                            f"**Direct Verdict: NOT ELIGIBLE**\n\n"
-                            f"The statutory annual family income ceiling for {scheme_lbl} is **₹{cap:.2f} Lakhs per annum** (Maximum ₹{int(cap*100000):,} per year). Your reported income of **₹{val} Lakhs** exceeds the official ceiling."
-                        )
-                    else:
-                        direct_verdict = (
-                            f"**Direct Verdict: ELIGIBLE ON INCOME CRITERIA**\n\n"
-                            f"Your reported income of **₹{val} Lakhs** is within the mandatory ceiling of **₹{cap:.2f} Lakhs per annum** for {scheme_lbl}."
-                        )
-
-        # 2. Extract Specific Factual Answer if no verdict
-        primary_answer = direct_verdict
-        if not primary_answer:
-            # Check Kisan Credit Card (KCC)
-            if "kcc" in q_lower or "kisan credit" in q_lower or top_chunk.scheme_slug == "kcc":
-                primary_answer = (
-                    "Under official Kisan Credit Card (KCC) operational guidelines:\n\n"
-                    "Eligible farmers, sharecroppers, tenant farmers, and SHGs receive subsidized institutional credit of up to **₹3,00,000** at an effective interest rate of **4% per annum** (7% statutory base rate minus a 3% prompt repayment incentive). Collateral-free institutional credit is sanctioned up to **₹1,60,000** without requirement of land hypothecation."
-                )
-            # Check MUDRA Loans (PMMY)
-            elif "mudra" in q_lower or "pmmy" in q_lower or top_chunk.scheme_slug == "pmmy":
-                primary_answer = (
-                    "Under official Pradhan Mantri MUDRA Yojana (PMMY) guidelines:\n\n"
-                    "Micro and small enterprises can access collateral-free institutional loans across three structured tiers:\n"
-                    "- **Shishu**: Loans up to **₹50,000** for startup and early micro-enterprises.\n"
-                    "- **Kishore**: Loans from **₹50,000 up to ₹5,00,000** for machinery, equipment, and working capital.\n"
-                    "- **Tarun**: Loans from **₹5,00,000 up to ₹10,00,000** (expanded up to **₹20,00,000** for previously repaid Tarun borrowers under Union Budget 2024-25)."
-                )
-            # Check Sukanya Samriddhi Yojana (SSY)
-            elif "sukanya" in q_lower or "ssy" in q_lower or top_chunk.scheme_slug == "ssy":
-                primary_answer = (
-                    "Under official Sukanya Samriddhi Yojana (SSY) guidelines:\n\n"
-                    "Parents or legal guardians can open an account for a **girl child below the age of 10 years** (maximum 2 girl children per family). "
-                    "The scheme currently offers a sovereign-backed interest rate of **8.2% per annum** (compounded yearly). "
-                    "Minimum annual deposit is **₹250** and maximum is **₹1,50,000 per financial year**, qualifying for complete tax exemption under **Section 80C (EEE status)**. Maturity is 21 years from account opening or upon marriage after age 18."
-                )
-            # Check APY age limits & pensions
-            elif ("age" in q_lower or "limit" in q_lower or "pension" in q_lower) and ("atal pension" in q_lower or "apy" in q_lower or top_chunk.scheme_slug == "apy"):
-                primary_answer = (
-                    "Under official Atal Pension Yojana (APY) guidelines:\n\n"
-                    "The minimum entry age for joining APY is **18 years** and the maximum entry age is **40 years**. The age of exit and commencement of guaranteed monthly pension (₹1,000 to ₹5,000) is **60 years**."
-                )
-            # Check PM-SVANidhi loans
-            elif ("svanidhi" in q_lower or "street vendor" in q_lower) and ("loan" in q_lower or "first" in q_lower or "amount" in q_lower):
-                primary_answer = (
-                    "Under official PM SVANidhi operational guidelines:\n\n"
-                    "The first loan is a collateral-free working capital loan of up to **₹10,000** with a 1-year tenure. Beneficiaries who repay on time become eligible for a 2nd loan of **₹20,000** (18-month tenure) and a 3rd loan of **₹50,000** (36-month tenure) with a 7% interest subsidy."
-                )
-            # Check PM-KISAN benefits
-            elif any(w in q_lower for w in ["kitna", "how much", "amount", "benefit", "installment"]) and ("kisan" in q_lower or top_chunk.scheme_slug == "pm-kisan"):
-                primary_answer = (
-                    "Under official PM-KISAN guidelines:\n\n"
-                    "Eligible landholding farmer families receive financial assistance of **₹6,000 per year**, distributed in **3 equal installments of ₹2,000 every 4 months** directly into their Aadhaar-seeded bank accounts via Direct Benefit Transfer (DBT)."
-                )
-            # Check Ayushman Bharat coverage
-            elif any(w in q_lower for w in ["how much", "benefit", "cover", "amount", "limit"]) and ("ayushman" in q_lower or "pmjay" in q_lower or top_chunk.scheme_slug == "ayushman-bharat-pmjay"):
-                primary_answer = (
-                    "Under official Ayushman Bharat PM-JAY guidelines:\n\n"
-                    "The scheme provides health coverage of **₹5,00,000 per family per year** on a family floater basis for secondary and tertiary care hospitalization across empanelled public and private hospitals nationwide."
-                )
-            # Check PM Surya Ghar subsidies
-            elif any(w in q_lower for w in ["subsidy", "benefit", "how much", "solar"]) and ("surya" in q_lower or "solar" in q_lower or top_chunk.scheme_slug == "pm-surya-ghar-muft-bijli"):
-                primary_answer = (
-                    "Under official PM Surya Ghar: Muft Bijli Yojana guidelines:\n\n"
-                    "The scheme provides up to **300 units of free electricity per month** and a direct capital subsidy of **₹30,000 for 1 kW**, **₹60,000 for 2 kW**, and up to **₹78,000 for 3 kW and above** rooftop systems."
-                )
-            # Check PM Vishwakarma credit
-            elif any(w in q_lower for w in ["loan", "toolkit", "stipend", "benefit"]) and ("vishwakarma" in q_lower or "artisan" in q_lower or top_chunk.scheme_slug == "pm-vishwakarma"):
-                primary_answer = (
-                    "Under official PM Vishwakarma operational guidelines:\n\n"
-                    "Artisans and craftspeople receive collateral-free enterprise loans up to **₹1,00,000** (Tranche 1, 18 months) and **₹2,00,000** (Tranche 2, 30 months) at a concessional interest rate of **5%**, alongside a **₹15,000** modern toolkit digital voucher and a **₹500/day** skill training stipend."
-                )
-
-        # 3. Table Parsing for Markdown Tables in Guidelines (e.g. NSP Thresholds Table)
-        key_provisions: List[str] = []
-        if "|" in top_chunk.content:
-            table_lines = [line.strip() for line in top_chunk.content.split("\n") if line.strip().startswith("|") and "---" not in line]
-            if len(table_lines) >= 2:
-                headers = [h.strip() for h in table_lines[0].split("|")[1:-1]]
-                for line in table_lines[1:]:
-                    cols = [c.strip() for c in line.split("|")[1:-1]]
-                    if len(cols) == len(headers):
-                        param = cols[0].replace("**", "")
-                        if intent == "income" and "income" in param.lower():
-                            if not primary_answer:
-                                primary_answer = f"The official family income ceiling: " + ", ".join(f"**{h}**: {v}" for h, v in zip(headers[1:], cols[1:])) + "."
-                            for h, v in zip(headers[1:], cols[1:]):
-                                key_provisions.append(f"**{h} Income Ceiling**: {v}")
-                        elif intent in ("eligibility", "general") or any(tok in param.lower() for tok in q_lower.split() if len(tok) > 3):
-                            key_provisions.append(f"**{param}**: " + ", ".join(f"{h}: {v}" for h, v in zip(headers[1:], cols[1:])))
-
-        # 4. Safe Sentence & Bullet Point Extraction from Chunks
-        cleaned_candidates = self._split_provisions_safely(top_chunk.content)
-
-        if not primary_answer and cleaned_candidates:
-            # Find best candidate sentence matching query words
-            q_words = [w for w in re.findall(r'\b[a-zA-Z0-9]{3,}\b', q_lower) if w not in STOP_WORDS]
-            scored_candidates = []
-            for item in cleaned_candidates:
-                item_l = item.lower()
-                c_score = sum(3 for w in q_words if w in item_l)
-                if intent == "income" and any(k in item_l for k in ["income", "ceiling", "₹", "lakh"]):
-                    c_score += 5
-                elif intent == "benefits" and any(k in item_l for k in ["₹", "subsidy", "allowance", "installments", "loan"]):
-                    c_score += 5
-                elif intent == "documents" and any(k in item_l for k in ["aadhaar", "certificate", "bonafide", "marksheet"]):
-                    c_score += 5
-                elif intent == "steps" and any(k in item_l for k in ["step", "portal", "registration", "apply"]):
-                    c_score += 5
-                scored_candidates.append((item, c_score))
-            scored_candidates.sort(key=lambda x: x[1], reverse=True)
-            primary_answer = scored_candidates[0][0] if scored_candidates else f"Details outlined in official {top_chunk.section_title}."
-
-        if not primary_answer:
-            primary_answer = f"According to official {top_chunk.doc_title} ({top_chunk.section_title}), please refer to verified policy provisions below."
-
-        # Collect additional provision bullets
-        for item in cleaned_candidates:
-            if len(key_provisions) >= 4:
-                break
-            if item not in primary_answer and not any(item[:30] in p for p in key_provisions):
-                key_provisions.append(item)
-
-        if not key_provisions:
-            key_provisions.append(f"All criteria governed by official Gazette notifications for {top_chunk.doc_title}.")
-
-        # 5. Extract Important Exclusions
-        exclusions: List[str] = []
-        for chunk, _ in top_chunks:
-            if "exclusion" in chunk.content.lower() or "ineligible" in chunk.content.lower() or chunk.category == "exclusions":
-                ex_lines = [
-                    line.strip().lstrip("-*• 0123456789.") for line in chunk.content.split("\n")
-                    if any(k in line.lower() for k in ["ineligible", "not eligible", "exclusion", "exclude", "strictly prohibited", "tax"])
-                    and "|" not in line and "---" not in line
-                ]
-                for ex in ex_lines:
-                    if len(ex) > 20 and not ex.startswith("#") and ex not in exclusions:
-                        exclusions.append(ex)
-                        if len(exclusions) >= 3:
-                            break
-
-        # Fallback exclusion if none extracted
-        if not exclusions:
-            if "scholarship" in top_chunk.scheme_slug:
-                exclusions.append("No Dual Scholarships: Students receiving another Central/State scholarship are not eligible.")
-            elif "kisan" in top_chunk.scheme_slug:
-                exclusions.append("Income Tax Payers and serving/retired Government employees are strictly excluded.")
-            else:
-                exclusions.append("Beneficiary must fulfill all mandatory eligibility criteria and maintain active KYC verification.")
-
-        # 6. Extract Key Numerical Facts
-        all_text = f"{primary_answer} " + " ".join(key_provisions)
-        key_facts = list(dict.fromkeys(re.findall(r'₹\s*[\d,]+(?:\s*Lakh)?|\b\d+%\b|\b\d+\s*years\b', all_text)))[:4]
-
-        # 7. Assemble Structured 4-Section Output
-        formatted = (
-            f"### Direct Answer\n"
-            f"{primary_answer}\n\n"
-            f"### Key Policy Details & Thresholds\n"
-        )
-        for p in key_provisions[:4]:
-            formatted += f"- {p}\n"
-
-        formatted += f"\n### Important Exclusions & Conditions\n"
-        for ex in exclusions[:3]:
-            formatted += f"- {ex}\n"
-
-        formatted += (
-            f"\n### Official Portal & Verified Source\n"
-            f"Verified under Government of India guidelines. Access the official portal at: [{top_chunk.source_url}]({top_chunk.source_url})."
-        )
-
-        return formatted, key_facts
-
     def answer_query(self, request: AssistantQueryRequest) -> AssistantQueryResponse:
         """
-        Generate a verifiable answer strictly grounded in authentic government documents.
-        Follows a Multi-Tier RAG pipeline:
+        Execute multi-stage RAG pipeline:
         1. Fast LRU/TTL cache lookup
-        2. Query analysis & intent classification
-        3. Ambiguity & Civic guidance routing
-        4. Guardrail check for off-topic queries
-        5. BM25-normalized hybrid retrieval
-        6. Gemini generation with strict factual constraints
-        7. LLM-as-a-Judge cross-verification and answer polishing
+        2. Conversational query rewriting & pronoun resolution
+        3. Intent classification & scheme identification
+        4. Civic Navigator guidance for ambiguous short queries
+        5. Non-civic guardrail check
+        6. Hybrid Dense + Sparse (RRF) retrieval
+        7. Evidence-based reranking & context assembly
+        8. Gemini answer generation with strict government constraints + local fallback
+        9. Citation validation, numerical check & abstention enforcement
         """
         question = request.question.strip()
         scheme_slug = request.scheme_id
+        conversation_id = request.conversation_id or str(uuid.uuid4())
         q_lower = question.lower()
 
         # 1. Fast Cache Lookup (sub-millisecond latency for repeated questions)
@@ -943,7 +401,7 @@ class RAGAssistantService:
                 answer=cached_resp.answer,
                 citations=cached_resp.citations,
                 insufficient_evidence=cached_resp.insufficient_evidence,
-                conversation_id=request.conversation_id or str(uuid.uuid4()),
+                conversation_id=conversation_id,
                 verification_status=f"{cached_resp.verification_status}_cached",
                 confidence_score=cached_resp.confidence_score,
                 key_facts=cached_resp.key_facts,
@@ -951,11 +409,19 @@ class RAGAssistantService:
                 detected_intent=cached_resp.detected_intent
             )
 
-        # 2. Check for generic/ambiguous inquiries lacking scheme context
+        # 2. Conversational Pronoun & Follow-up Rewriting
+        rewritten_question, ctx_slug = query_rewriter.rewrite_if_needed(
+            question=question,
+            explicit_scheme_slug=scheme_slug,
+            conversation_id=conversation_id
+        )
+        target_slug = ctx_slug or scheme_slug or self._resolve_scheme_slug(rewritten_question)
+
+        # 3. Disambiguation & Civic Navigator for short ambiguous queries
         words = [w for w in re.findall(r'\b[a-zA-Z0-9]{2,}\b', q_lower) if w not in STOP_WORDS]
         generic_intents = {"apply", "application", "eligibility", "eligible", "documents", "document", "process", "details", "help", "hello", "hi"}
         if len(words) <= 3 and any(w in generic_intents for w in words):
-            if not scheme_slug and not self._resolve_scheme_slug(question):
+            if not target_slug:
                 return AssistantQueryResponse(
                     answer=(
                         "### NitiSetu Civic Scheme Navigator\n\n"
@@ -978,155 +444,124 @@ class RAGAssistantService:
                     insufficient_evidence=False,
                     verification_status="guidance",
                     confidence_score=1.0,
-                    conversation_id=request.conversation_id or str(uuid.uuid4()),
+                    conversation_id=conversation_id,
                     detected_intent="Civic Guidance & Scheme Selection",
                     matched_scheme_name="Civic Navigator"
                 )
 
-        # 3. Guardrail against off-topic / non-civic inquiries
+        # 4. Guardrail against off-topic / ungrounded non-civic inquiries
         has_off_topic = any(re.search(r'\b' + re.escape(w) + r'\b', q_lower) for w in OFF_TOPIC_KEYWORDS)
-        has_civic_word = any(w in q_lower for w in [
-            "scheme", "scholarship", "kisan", "farmer", "pension", "housing", "pmay",
-            "ayushman", "health", "hospital", "income", "eligible", "subsidy", "loan",
-            "government", "yojana", "documents", "aadhaar", "svanidhi", "surya", "vishwakarma",
-            "kcc", "mudra", "sukanya", "ssy", "atal"
-        ])
+        if has_off_topic:
+            matched_name = "Government Schemes"
+            if target_slug:
+                for c in retriever._chunks:
+                    if c.metadata.scheme_id == target_slug:
+                        matched_name = c.metadata.document_title
+                        break
+                if matched_name == "Government Schemes":
+                    item = scheme_service.get_scheme_by_slug(target_slug)
+                    if item:
+                        matched_name = getattr(item, "scheme_name", getattr(item, "Scheme Name", target_slug.upper()))
 
-        if has_off_topic and not has_civic_word:
             return AssistantQueryResponse(
-                answer="I could not find verified facts regarding this in the official government scheme guidelines. "
-                       "To ensure complete accuracy, NitiSetu strictly provides factual information from official Government of India Gazette notifications and operational guidelines.",
+                answer=(
+                    f"I couldn't find this information in the available official documents for {matched_name}. "
+                    "Official government scheme guidelines do not contain provisions or benefits for this topic. "
+                    "Please refer to the official government notification or portal for confirmation."
+                ),
                 citations=[],
                 insufficient_evidence=True,
                 verification_status="insufficient_evidence",
                 confidence_score=0.0,
-                conversation_id=request.conversation_id or str(uuid.uuid4())
+                conversation_id=conversation_id,
+                detected_intent=query_classifier.get_intent_label(query_classifier.classify(rewritten_question)),
+                matched_scheme_name=matched_name
             )
 
-        # 4. Retrieve relevant chunks
-        top_chunks = self._retrieve_relevant_chunks(question, scheme_slug=scheme_slug, top_k=4)
+        # 5. Classify intent
+        intent = query_classifier.classify(rewritten_question)
+        intent_label = query_classifier.get_intent_label(intent)
 
-        # 5. Check for insufficient evidence threshold
-        if not top_chunks or top_chunks[0][1] < 3.0:
-            return AssistantQueryResponse(
-                answer="I could not find verified facts regarding this in the official government scheme guidelines. "
-                       "To ensure complete accuracy, NitiSetu only provides information directly stated in official government notifications.",
-                citations=[],
-                insufficient_evidence=True,
-                verification_status="insufficient_evidence",
-                confidence_score=0.0,
-                conversation_id=request.conversation_id or str(uuid.uuid4())
-            )
-
-        intent = self._classify_intent(question)
-        resolved_scheme_name = top_chunks[0][0].doc_title
-
-        # 4. Build citations list and context string
-        citations: List[SourceCitation] = []
-        context_parts: List[str] = []
-
-        for chunk, score in top_chunks:
-            clean_content = re.sub(r'#+\s*', '', chunk.content)
-            clean_content = ' '.join(clean_content.split())
-            excerpt = clean_content[:260] + ("..." if len(clean_content) > 260 else "")
-
-            citations.append(SourceCitation(
-                source_title=chunk.doc_title,
-                source_url=chunk.source_url,
-                section_title=chunk.section_title,
-                page_number=1,
-                excerpt=excerpt
-            ))
-
-            context_parts.append(f"[{chunk.doc_title} | Section: {chunk.section_title}]\n{chunk.content}")
-
-        context_str = "\n\n---\n\n".join(context_parts)
-
-        # 5. Gemini Generation Stage
-        system_prompt = (
-            "You are NitiSetu, an authentic Government of India welfare scheme assistant. "
-            "Answer the citizen's inquiry with utmost factual precision.\n\n"
-            "STRICT RULES:\n"
-            "1. DIRECT VERDICT / DIRECT ANSWER FIRST: In the very first 1-2 sentences under '### Direct Answer', directly and clearly answer the exact question asked.\n"
-            "   - If the citizen asks whether they are eligible or asks about an exclusion condition (e.g. 'Can I get...', 'Am I eligible...', 'I pay income tax...', 'My income is 3.5 Lakhs...'), start with an explicit bold verdict: '**Direct Verdict: NOT ELIGIBLE**' or '**Direct Verdict: ELIGIBLE**' or '**Direct Verdict: STRICTLY PROHIBITED**', followed by the exact statutory clause and numeric comparison.\n"
-            "2. ZERO HALLUCINATION: Rely strictly on the official excerpts provided. Never fabricate income limits, deadlines, or numbers.\n"
-            "3. STRUCTURED FORMAT: Organize your answer with clear markdown headings:\n"
-            "   ### Direct Answer\n"
-            "   ### Key Policy Details & Thresholds (or Financial Benefits / Documents Required as relevant)\n"
-            "   ### Important Exclusions & Conditions\n"
-            "   ### Official Portal & Verified Source\n"
-            "4. HIGHLIGHT FIGURES: Bold all key figures (e.g. **₹2,50,000 per annum**, **₹6,00,000**, **₹5,00,000**).\n"
-            "5. If the context does not explicitly contain the answer, explicitly state: 'The official guidelines do not specify this information.'\n\n"
-            f"OFFICIAL CONTEXT:\n{context_str}\n\n"
-            f"CITIZEN QUESTION:\n{question}\n\n"
-            "GROUNDED ANSWER:"
+        # 6. Hybrid Retrieval (Dense Vector + BM25 FTS with RRF fusion)
+        retrieved_chunks = retriever.retrieve(
+            query=rewritten_question,
+            target_scheme_slug=target_slug,
+            intent=intent,
+            top_k=6
         )
 
-        candidate_answer = self._call_gemini_chat(system_prompt, settings.gemini_generation_model)
+        if not retrieved_chunks:
+            return AssistantQueryResponse(
+                answer=ABSTENTION_MESSAGE,
+                citations=[],
+                insufficient_evidence=True,
+                verification_status="insufficient_evidence",
+                confidence_score=0.0,
+                conversation_id=conversation_id
+            )
 
-        final_answer = ""
+        # 7. Evidence-based Reranking
+        ranked_chunks = reranker.rerank(
+            query=rewritten_question,
+            candidates=retrieved_chunks,
+            intent=intent,
+            top_k=4
+        )
+
+        # Check retrieval evidence threshold
+        if not ranked_chunks or ranked_chunks[0][1] < 0.01:
+            return AssistantQueryResponse(
+                answer=ABSTENTION_MESSAGE,
+                citations=[],
+                insufficient_evidence=True,
+                verification_status="insufficient_evidence",
+                confidence_score=0.0,
+                conversation_id=conversation_id
+            )
+
+        # 8. Assemble cited context
+        context_str = context_builder.build_context(ranked_chunks, max_words=1400)
+        resolved_scheme_name = ranked_chunks[0][0].metadata.document_title
+
+        # 9. Gemini Generation with Government Assistant Constraints
+        raw_answer = answer_generator.generate(rewritten_question, context_str, intent)
         verification_status = "verified"
         confidence_score = 0.95
         key_facts: List[str] = []
 
-        if candidate_answer and len(candidate_answer.strip()) > 20:
-            # 6. LLM-as-a-Judge Cross-Verification
-            judgment = self._judge_cross_verify(question, context_str, candidate_answer)
-
-            if judgment.get("insufficient_evidence", False):
-                return AssistantQueryResponse(
-                    answer="I could not find verified facts regarding this in the official government scheme guidelines. "
-                           "To ensure complete accuracy, NitiSetu only provides information directly stated in official government notifications.",
-                    citations=[],
-                    insufficient_evidence=True,
-                    verification_status="insufficient_evidence",
-                    confidence_score=0.0,
-                    conversation_id=request.conversation_id or str(uuid.uuid4())
-                )
-
-            if judgment.get("passed", True):
-                final_answer = candidate_answer
-                verification_status = "verified"
-            else:
-                # Use the Judge's polished, revised answer
-                final_answer = judgment.get("verified_answer") or candidate_answer
-                verification_status = "revised_by_judge"
-
-            confidence_score = min(1.0, max(0.5, float(judgment.get("score", 9)) / 10.0))
-            key_facts = judgment.get("key_facts", [])
+        if raw_answer and len(raw_answer.strip()) > 20:
+            final_answer = raw_answer
         else:
-            # 7. Smart local grounded synthesis fallback
-            final_answer, key_facts = self._smart_grounded_local_synthesis(question, top_chunks, intent)
+            final_answer, key_facts = answer_generator.local_synthesis_fallback(rewritten_question, ranked_chunks, intent)
             verification_status = "verified_local"
-            confidence_score = 0.9
+            confidence_score = 0.90
 
-        # Ensure key_facts has numbers if none extracted
+        # 10. Citation Validation & Abstention Protocol
+        is_valid, validated_answer, citations, val_conf = citation_validator.validate_and_build_citations(
+            answer=final_answer,
+            retrieved_chunks=ranked_chunks
+        )
+
+        # Record conversation context turn for subsequent follow-up queries
+        query_rewriter.record_turn(conversation_id, target_slug, resolved_scheme_name)
+
         if not key_facts:
-            matched_nums = re.findall(r'₹\s*[\d,]+(?:\s*Lakh)?|\b\d+%\b', final_answer)
+            matched_nums = re.findall(r'₹\s*[\d,]+(?:\s*Lakh)?|\b\d+%\b|\b\d+\s*years?\b', validated_answer)
             key_facts = list(dict.fromkeys(matched_nums))[:4]
 
-        intent_labels = {
-            "income": "Income Ceiling & Means Threshold",
-            "documents": "Mandatory Documentation Requirements",
-            "steps": "Step-by-Step Application Procedure",
-            "benefits": "Financial Benefits & Subsidy Structure",
-            "eligibility": "Eligibility & Criteria Check",
-            "exclusions": "Exclusion & Ineligibility Rules",
-            "deadline": "Deadlines & Timelines",
-            "general": "General Scheme Information"
-        }
-
         response = AssistantQueryResponse(
-            answer=final_answer,
+            answer=validated_answer,
             citations=citations,
-            insufficient_evidence=False,
-            conversation_id=request.conversation_id or str(uuid.uuid4()),
+            insufficient_evidence=(validated_answer == ABSTENTION_MESSAGE),
+            conversation_id=conversation_id,
             verification_status=verification_status,
-            confidence_score=confidence_score,
+            confidence_score=val_conf,
             key_facts=key_facts,
             matched_scheme_name=resolved_scheme_name,
-            detected_intent=intent_labels.get(intent, "General Policy Information")
+            detected_intent=intent_label
         )
+
+        # Store in cache
         self._cache.set(cache_key, response)
         return response
 
