@@ -62,12 +62,12 @@ class AnswerGenerator:
         )
 
         candidate_models = [
-            getattr(settings, "gemini_generation_model", "gemini-3.5-flash"),
-            "gemini-3.1-flash-lite",
-            "gemini-3-flash-preview"
+            getattr(settings, "gemini_generation_model", "gemini-flash-lite-latest"),
+            "gemini-3.1-flash-lite"
         ]
+        unique_models = list(dict.fromkeys(candidate_models))
 
-        for m in candidate_models:
+        for m in unique_models:
             try:
                 from google import genai
                 from google.genai import types
@@ -83,11 +83,11 @@ class AnswerGenerator:
                 if response and response.text:
                     return response.text.strip()
             except Exception as e:
-                err_str = str(e).lower()
-                logger.warning(f"Gemini call with {m} failed: {e}")
-                # Back off on quota or client error to prevent blocking subsequent queries
-                self._quota_exhausted_until = time.time() + 600
-                break
+                logger.warning(f"Gemini call with {m} failed: {e}. Trying fallback.")
+                continue
+
+        # If remote candidates failed, back off briefly
+        self._quota_exhausted_until = time.time() + 30
 
         return None
 

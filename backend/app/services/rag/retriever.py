@@ -115,6 +115,8 @@ class HybridRetriever:
             # Intent alignment bonus
             if intent == chunk.metadata.category:
                 score += 5.0
+            elif intent == "income" and any(k in chunk.content.lower() for k in ["income ceiling", "income limit", "annual family income", "₹2,50,000", "₹4,50,000"]):
+                score += 5.0
             elif intent == "exclusions" and chunk.metadata.category in ("eligibility", "general"):
                 score += 3.0
 
@@ -128,7 +130,7 @@ class HybridRetriever:
         dense_results: List[Tuple[UnifiedChunk, float]],
         sparse_results: List[Tuple[UnifiedChunk, float]]
     ) -> List[Tuple[UnifiedChunk, float]]:
-        """Combine dense and sparse rankings using standard RRF."""
+        """Combine dense and sparse rankings using standard RRF with section deduplication."""
         rrf_scores: Dict[str, float] = {}
         chunk_lookup: Dict[str, UnifiedChunk] = {}
 
@@ -144,7 +146,17 @@ class HybridRetriever:
 
         fused = [(chunk_lookup[cid], score) for cid, score in rrf_scores.items()]
         fused.sort(key=lambda x: x[1], reverse=True)
-        return fused
+
+        # Deduplicate sections so duplicate parent/children don't steal top_k slots
+        seen_sections = set()
+        deduped = []
+        for c, score in fused:
+            sec_key = (c.metadata.scheme_id, c.metadata.section_heading.strip().lower())
+            if sec_key not in seen_sections:
+                seen_sections.add(sec_key)
+                deduped.append((c, score))
+
+        return deduped if deduped else fused
 
     def _build_virtual_chunks_for_scheme(self, scheme, target_scheme_slug: str) -> List[UnifiedChunk]:
         """Generate structured virtual chunks from authentic 2066-scheme catalog."""
