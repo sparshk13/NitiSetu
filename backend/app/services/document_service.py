@@ -5,7 +5,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from backend.app.schemas.document import DocumentResponse, DocumentChecklistResponse
 from backend.app.services.scheme_service import scheme_service
 from backend.app.services.profile_service import DEFAULT_DEMO_USER_ID, profile_service
@@ -82,28 +82,28 @@ class DocumentService:
             "created_at": "2024-10-28T14:30:00Z"
         }
 
+    @staticmethod
+    def _to_response(d: Dict) -> DocumentResponse:
+        return DocumentResponse(
+            id=d["id"],
+            original_filename=d["original_filename"],
+            file_size=d["file_size"],
+            detected_type=d.get("detected_type"),
+            processing_status=d["processing_status"],
+            is_valid=d.get("is_valid", True),
+            verification_score=d.get("verification_score", 95),
+            verification_error=d.get("verification_error"),
+            issuing_authority=d.get("issuing_authority"),
+            tag=d.get("tag"),
+            extracted_fields=d.get("extracted_fields"),
+            user_confirmed_fields=d.get("user_confirmed_fields"),
+            created_at=d["created_at"]
+        )
+
     def list_documents(self, user_id: Optional[str] = None) -> List[DocumentResponse]:
         """List documents for the specific authenticated user only. Never leaks demo docs to registered citizens."""
         target_uid = user_id or DEFAULT_DEMO_USER_ID
-        results = []
-        for d in _DOCUMENTS_VAULT.values():
-            if d.get("user_id") == target_uid:
-                results.append(DocumentResponse(
-                    id=d["id"],
-                    original_filename=d["original_filename"],
-                    file_size=d["file_size"],
-                    detected_type=d.get("detected_type"),
-                    processing_status=d["processing_status"],
-                    is_valid=d.get("is_valid", True),
-                    verification_score=d.get("verification_score", 95),
-                    verification_error=d.get("verification_error"),
-                    issuing_authority=d.get("issuing_authority"),
-                    tag=d.get("tag"),
-                    extracted_fields=d.get("extracted_fields"),
-                    user_confirmed_fields=d.get("user_confirmed_fields"),
-                    created_at=d["created_at"]
-                ))
-        return results
+        return [self._to_response(d) for d in _DOCUMENTS_VAULT.values() if d.get("user_id") == target_uid]
 
     def delete_document(self, doc_id: str, user_id: Optional[str] = None) -> bool:
         """Delete document from vault strictly enforcing ownership."""
@@ -520,22 +520,7 @@ class DocumentService:
         }
 
         _DOCUMENTS_VAULT[doc_id] = doc_record
-
-        return DocumentResponse(
-            id=doc_id,
-            original_filename=filename,
-            file_size=content_len,
-            detected_type=doc_type,
-            processing_status="awaiting_user_confirmation",
-            is_valid=True,
-            verification_score=score,
-            verification_error=None,
-            issuing_authority=issuing_authority,
-            tag=tag,
-            extracted_fields=extracted,
-            user_confirmed_fields=None,
-            created_at=doc_record["created_at"]
-        )
+        return self._to_response(doc_record)
 
     def confirm_extraction(self, doc_id: str, confirmed_fields: Dict) -> Optional[DocumentResponse]:
         """User explicitly reviews and confirms extracted facts."""
@@ -546,22 +531,7 @@ class DocumentService:
         doc["processing_status"] = "verified"
         doc["user_confirmed_fields"] = confirmed_fields
         _DOCUMENTS_VAULT[doc_id] = doc
-
-        return DocumentResponse(
-            id=doc["id"],
-            original_filename=doc["original_filename"],
-            file_size=doc["file_size"],
-            detected_type=doc.get("detected_type"),
-            processing_status="verified",
-            is_valid=doc.get("is_valid", True),
-            verification_score=doc.get("verification_score", 95),
-            verification_error=None,
-            issuing_authority=doc.get("issuing_authority"),
-            tag=doc.get("tag"),
-            extracted_fields=doc.get("extracted_fields"),
-            user_confirmed_fields=confirmed_fields,
-            created_at=doc["created_at"]
-        )
+        return self._to_response(doc)
 
     def get_scheme_checklist(self, scheme_slug: str) -> DocumentChecklistResponse:
         """

@@ -1,6 +1,3 @@
-import re
-
-
 class QueryClassifier:
     """Classifies user welfare inquiries into structured intent categories for targeted retrieval."""
 

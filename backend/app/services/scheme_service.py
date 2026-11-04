@@ -2,7 +2,7 @@ import re
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from backend.app.schemas.scheme import SchemeListItem, SchemeListResponse, SchemeDetailResponse, SchemeRecommendationRequest
 
 logger = logging.getLogger("nitisetu.schemes")
@@ -249,31 +249,31 @@ class SchemeCatalogService:
         end = start + page_size
         paged_items = filtered[start:end]
 
-        items = []
-        for s in paged_items:
-            slug = s["_clean_slug"]
-            desc = s.get("Description", "") or ""
-            summary = desc[:250] + ("..." if len(desc) > 250 else "")
-
-            items.append(SchemeListItem(
-                id=slug,
-                slug=slug,
-                name=s.get("Scheme Name", "Untitled Scheme"),
-                summary=summary,
-                level=s.get("Level", "Central Government"),
-                state_or_ministry=s.get("State / UT / Ministry"),
-                scheme_type="scholarship" if "scholarship" in s.get("Scheme Name", "").lower() else "welfare",
-                application_mode=s.get("Application Mode", "Online"),
-                benefit_summary=(s.get("Benefits", "") or "")[:200],
-                official_url=s.get("Official Link") or s.get("MyScheme URL") or "https://www.myscheme.gov.in/",
-                last_verified_at="2024-11-01"
-            ))
-
         return SchemeListResponse(
             total=total,
             page=page,
             page_size=page_size,
-            items=items
+            items=[self._to_list_item(s, summary_len=250) for s in paged_items]
+        )
+
+    @staticmethod
+    def _to_list_item(s: Dict, summary_len: int = 250, reason: Optional[str] = None) -> SchemeListItem:
+        slug = s["_clean_slug"]
+        desc = s.get("Description", "") or ""
+        summary = desc[:summary_len] + ("..." if len(desc) > summary_len else "")
+        return SchemeListItem(
+            id=slug,
+            slug=slug,
+            name=s.get("Scheme Name", "Untitled Scheme"),
+            summary=summary,
+            level=s.get("Level", "Central Government"),
+            state_or_ministry=s.get("State / UT / Ministry"),
+            scheme_type="scholarship" if "scholarship" in s.get("Scheme Name", "").lower() else "welfare",
+            application_mode=s.get("Application Mode", "Online"),
+            benefit_summary=(s.get("Benefits", "") or "")[:200],
+            official_url=s.get("Official Link") or s.get("MyScheme URL") or "https://www.myscheme.gov.in/",
+            last_verified_at="2024-11-01",
+            recommendation_reason=reason
         )
 
     def get_scheme_by_slug(self, slug: str) -> Optional[SchemeDetailResponse]:
@@ -462,28 +462,10 @@ class SchemeCatalogService:
         # Sort candidates by match score descending
         candidates.sort(key=lambda x: x[0], reverse=True)
 
-        results = []
-        for _, s, reason in candidates[:profile.limit]:
-            slug = s["_clean_slug"]
-            desc = s.get("Description", "") or ""
-            summary = desc[:200] + ("..." if len(desc) > 200 else "")
-
-            results.append(SchemeListItem(
-                id=slug,
-                slug=slug,
-                name=s.get("Scheme Name", "Untitled Scheme"),
-                summary=summary,
-                level=s.get("Level", "Central Government"),
-                state_or_ministry=s.get("State / UT / Ministry"),
-                scheme_type="scholarship" if "scholarship" in s.get("Scheme Name", "").lower() else "welfare",
-                application_mode=s.get("Application Mode", "Online"),
-                benefit_summary=(s.get("Benefits", "") or "")[:200],
-                official_url=s.get("Official Link") or s.get("MyScheme URL") or "https://www.myscheme.gov.in/",
-                last_verified_at="2024-11-01",
-                recommendation_reason=reason
-            ))
-
-        return results
+        return [
+            self._to_list_item(s, summary_len=200, reason=reason)
+            for _, s, reason in candidates[:profile.limit]
+        ]
 
 
 scheme_service = SchemeCatalogService()
